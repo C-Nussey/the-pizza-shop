@@ -1,0 +1,556 @@
+/**
+ * simulation.js — The Pizza Shop
+ *
+ * Pure, DOM-free simulation of a pizza shop as a flow system:
+ *
+ *     Orders  ->  Kitchen  ->  Delivered
+ *
+ * Teaching goal: the same flow lessons as a delivery pipeline, but in a
+ * setting anyone already understands. Orders arrive on their own schedule,
+ * the kitchen has finite capacity, and a pizza that misses closing time is
+ * worth nothing — so the player has to manage BOTH sides: how much work is
+ * in flight (oven slots, staffing) and how much work they accept at all
+ * (open/closed).
+ *
+ * Time runs in 15-minute slices across a service window, so lead time is
+ * measured in MINUTES. "Forty minutes for a pizza" means something to
+ * everyone; "4.2 days cycle time" does not.
+ *
+ * No DOM, no I/O — runs in a browser or under node for testing.
+ */
+
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) {
+    module.exports = factory();
+  } else {
+    root.Shop = factory();
+  }
+})(typeof self !== "undefined" ? self : this, function () {
+  "use strict";
+
+  // --- Time ---------------------------------------------------------------
+  var MINUTES_PER_TICK = 15;
+  var OPENING_HOUR = 11; // 11:00
+  var CLOSING_HOUR = 21; // 21:00
+  var TICKS_PER_DAY = ((CLOSING_HOUR - OPENING_HOUR) * 60) / MINUTES_PER_TICK; // 40
+
+  // --- Pizza types --------------------------------------------------------
+  // Effort is in worker-ticks. One worker delivers 1 effort per tick, so a
+  // Classic (3 effort) with one worker's full attention takes 45 minutes.
+  var PIZZA_TYPES = {
+    S: { key: "S", name: "Margherita", effort: 2.0, price: 14, ingredients: 4 },
+    M: { key: "M", name: "Pepperoni", effort: 3.0, price: 18, ingredients: 6 },
+    F: { key: "F", name: "The Works", effort: 4.5, price: 24, ingredients: 9 },
+  };
+  // Rolled on arrival — this is the "how complex is this order" dice.
+  var COMPLEXITY_WEIGHTS = [
+    { key: "S", weight: 0.4 },
+    { key: "M", weight: 0.4 },
+    { key: "F", weight: 0.2 },
+  ];
+  var EFFORT_VARIATION_MIN = 0.8;
+  var EFFORT_VARIATION_MAX = 1.3;
+  // You cannot put five cooks on one margherita. A single pizza can absorb
+  // at most this much effort per tick no matter how many staff are free —
+  // which is why too FEW oven slots leaves staff idle, and too many spreads
+  // them thin. Without this cap, one slot and three cooks would just mean
+  // one very fast pizza, and the WIP lever would have a dominant strategy.
+  var MAX_EFFORT_PER_PIZZA_PER_TICK = 1;
+
+  // --- Quality ------------------------------------------------------------
+  // Rolled when a pizza comes out of the oven. Fancier pizzas go wrong more
+  // often, and disproportionately so: more toppings, more to get wrong. The
+  // super-linear exponent is what makes complexity actually matter rather
+  // than being flat noise attached to a label.
+  var BASE_FAIL_CHANCE = 0.08;
+  var COMPLEXITY_RISK_EXPONENT = 1.4;
+  var REFERENCE_EFFORT = PIZZA_TYPES.M.effort;
+  var CROWDING_RISK = 0.12; // extra risk per unit of kitchen overload
+  var MAX_FAIL_CHANCE = 0.65;
+  // Of the pizzas that are wrong, how many does the kitchen catch before it
+  // leaves? The rest reach the customer and come back — far more expensive.
+  var CAUGHT_IN_KITCHEN_SHARE = 0.6;
+  var REMAKE_EFFORT_FRACTION = 0.5; // a caught pizza needs this much of its effort again
+  var RETURN_DELAY_TICKS_MIN = 2; // how long before an unhappy customer brings it back
+  var RETURN_DELAY_TICKS_MAX = 5;
+
+  // --- Money --------------------------------------------------------------
+  var WAGE_PER_WORKER_PER_DAY = 60;
+  var WALKED_CUSTOMER_GOODWILL = 6; // on top of losing the sale and the ingredients
+  var RETURNED_GOODWILL = 8; // on top of refunding and binning it
+
+  // --- Demand -------------------------------------------------------------
+  // Orders per tick by hour of day: quiet lunch, dead afternoon, dinner rush.
+  // The rush is what makes "should we keep taking orders?" a real question
+  // rather than arithmetic.
+  // Tuned so the dinner rush genuinely outruns a well-staffed kitchen (peak
+  // ~8 orders/hour against roughly 5/hour of capacity). If demand never
+  // exceeds capacity there is nothing to decide — you just accept everything.
+  var DEMAND_BY_HOUR = {
+    11: 0.50, 12: 1.30, 13: 1.20, 14: 0.50, 15: 0.35,
+    16: 0.50, 17: 1.10, 18: 1.90, 19: 2.10, 20: 1.30,
+  };
+
+  var DEFAULT_PARAMS = {
+    workers: 3,
+    ovenSlots: 4,
+    acceptingOrders: true,
+  };
+
+  function clamp(v, lo, hi) {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function tickToHour(tick) {
+    return OPENING_HOUR + Math.floor((tick * MINUTES_PER_TICK) / 60);
+  }
+
+  function tickToClock(tick) {
+    var totalMinutes = OPENING_HOUR * 60 + tick * MINUTES_PER_TICK;
+    var h = Math.floor(totalMinutes / 60);
+    var m = totalMinutes % 60;
+    var suffix = h >= 12 ? "PM" : "AM";
+    var display = h % 12 === 0 ? 12 : h % 12;
+    return display + ":" + (m < 10 ? "0" : "") + m + " " + suffix;
+  }
+
+  function rollComplexity() {
+    var r = Math.random();
+    var acc = 0;
+    for (var i = 0; i < COMPLEXITY_WEIGHTS.length; i++) {
+      acc += COMPLEXITY_WEIGHTS[i].weight;
+      if (r <= acc) return COMPLEXITY_WEIGHTS[i].key;
+    }
+    return "M";
+  }
+
+  function rollEffort(typeKey) {
+    var base = PIZZA_TYPES[typeKey].effort;
+    return base * (EFFORT_VARIATION_MIN + Math.random() * (EFFORT_VARIATION_MAX - EFFORT_VARIATION_MIN));
+  }
+
+  function createShop(params) {
+    var p = Object.assign({}, DEFAULT_PARAMS, params || {});
+    return {
+      day: 1,
+      tick: 0,
+      dayOver: false,
+      params: p,
+      cash: 0,
+      nextOrderId: 1,
+      arrivalAccumulator: 0,
+      queue: [], // accepted, waiting to start
+      kitchen: [], // being made
+      delivered: [], // left the shop happy (so far)
+      returned: [], // came back
+      walked: [], // never got their pizza before closing
+      refusedCount: 0, // orders turned away because we were closed
+      pendingReturns: [], // { orderId, dueTick, order }
+      events: [], // { tick, kind, message }
+      history: [], // per-tick snapshot
+      days: [], // completed day summaries
+      today: newDayTotals(),
+    };
+  }
+
+  function newDayTotals() {
+    return {
+      revenue: 0,
+      ingredientCost: 0,
+      refunds: 0,
+      goodwill: 0,
+      deliveredCount: 0,
+      returnedCount: 0,
+      remadeCount: 0,
+      walkedCount: 0,
+      refusedCount: 0,
+      acceptedCount: 0,
+    };
+  }
+
+  function setParams(state, partial) {
+    Object.assign(state.params, partial);
+  }
+
+  function logEvent(state, kind, message) {
+    state.events.push({ day: state.day, tick: state.tick, kind: kind, message: message });
+    if (state.events.length > 200) state.events.splice(0, state.events.length - 200);
+  }
+
+  /**
+   * Share capacity across the pizzas being made, giving effort a pizza can't
+   * absorb to the ones that can still use it. Returns unused capacity, which
+   * is genuine idle time — staff standing around.
+   */
+  function distributeEffort(items, capacity) {
+    var remaining = capacity;
+    var absorbers = items.slice();
+
+    while (remaining > 1e-6 && absorbers.length > 0) {
+      var share = remaining / absorbers.length;
+      var stillHungry = [];
+      var consumed = 0;
+      for (var i = 0; i < absorbers.length; i++) {
+        var item = absorbers[i];
+        // Capped both by what's left to do and by how much attention one
+        // pizza can physically take in 15 minutes.
+        var headroom = MAX_EFFORT_PER_PIZZA_PER_TICK - (item.absorbedThisTick || 0);
+        var needed = Math.min(item.effortRequired - item.effortDone, headroom);
+        if (needed <= 1e-6) continue;
+        var given = Math.min(share, needed);
+        if (item.effortRequired - item.effortDone - given <= 1e-6) {
+          // Snap to exact completion so float residue can't strand a pizza
+          // a hair short of done forever.
+          given = item.effortRequired - item.effortDone;
+          item.effortDone = item.effortRequired;
+        } else {
+          item.effortDone += given;
+          if (needed - given > 1e-6) stillHungry.push(item);
+        }
+        item.absorbedThisTick = (item.absorbedThisTick || 0) + given;
+        consumed += given;
+      }
+      remaining -= consumed;
+      absorbers = stillHungry;
+      if (consumed <= 1e-6) break;
+    }
+
+    return remaining;
+  }
+
+  function failChanceFor(order, kitchenCount, workers) {
+    var sizeRisk = Math.pow(order.effortRequired / REFERENCE_EFFORT, COMPLEXITY_RISK_EXPONENT);
+    // More pizzas on the go than hands to make them = more mistakes.
+    var crowding = Math.max(0, (kitchenCount - workers) / Math.max(workers, 1));
+    return clamp(BASE_FAIL_CHANCE * sizeRisk + CROWDING_RISK * crowding, 0.01, MAX_FAIL_CHANCE);
+  }
+
+  function minutesSince(state, tick) {
+    return (state.tick - tick) * MINUTES_PER_TICK;
+  }
+
+  /** Advance one 15-minute slice. */
+  function tick(state) {
+    if (state.dayOver) return state;
+
+    var p = state.params;
+    state.tick += 1;
+    var todayEvents = [];
+
+    // 1. Customers who were unhappy bring their pizza back. This is the
+    //    expensive failure: we already gave it away, so we refund it, bin
+    //    the ingredients and take the goodwill hit.
+    for (var r = state.pendingReturns.length - 1; r >= 0; r--) {
+      var pending = state.pendingReturns[r];
+      if (pending.dueTick > state.tick) continue;
+      state.pendingReturns.splice(r, 1);
+      var ret = pending.order;
+      state.returned.push(ret);
+      state.today.refunds += ret.price;
+      state.today.goodwill += RETURNED_GOODWILL;
+      state.today.returnedCount += 1;
+      todayEvents.push({
+        kind: "returned",
+        message:
+          "#" + ret.id + " " + ret.typeName + " came back — refunded $" + ret.price +
+          " and binned it. Caught in the kitchen it would have cost a remake.",
+      });
+    }
+
+    // 2. Orders arrive. They only become OUR problem if we're open — this is
+    //    the demand-side lever: you can decline work instead of accepting it
+    //    and delivering it late.
+    var rate = DEMAND_BY_HOUR[tickToHour(state.tick - 1)] || 0;
+    state.arrivalAccumulator += rate;
+    while (state.arrivalAccumulator >= 1) {
+      state.arrivalAccumulator -= 1;
+      var typeKey = rollComplexity();
+      var type = PIZZA_TYPES[typeKey];
+      if (!p.acceptingOrders) {
+        state.refusedCount += 1;
+        state.today.refusedCount += 1;
+        todayEvents.push({
+          kind: "refused",
+          message: "Turned away a " + type.name + " order — we're closed to new orders.",
+        });
+        continue;
+      }
+      var order = {
+        id: state.nextOrderId++,
+        typeKey: typeKey,
+        typeName: type.name,
+        price: type.price,
+        ingredients: type.ingredients,
+        effortRequired: rollEffort(typeKey),
+        effortDone: 0,
+        remakes: 0,
+        orderedTick: state.tick,
+        startedTick: null,
+      };
+      state.queue.push(order);
+      state.today.acceptedCount += 1;
+    }
+
+    // 3. The kitchen works. Capacity is workers x 1 effort per tick, shared
+    //    across everything on the go — so more pizzas at once means slower
+    //    progress on each, which is the whole WIP lesson.
+    var kitchenCountAtStart = state.kitchen.length;
+    var capacity = p.workers;
+    state.kitchen.forEach(function (pizza) {
+      pizza.absorbedThisTick = 0;
+    });
+    var leftover = distributeEffort(state.kitchen, capacity);
+
+    // 4. Pizzas that are finished get checked.
+    function runQualityPass() {
+      for (var k = state.kitchen.length - 1; k >= 0; k--) {
+        var pizza = state.kitchen[k];
+        if (pizza.effortDone < pizza.effortRequired) continue;
+
+        var failed = Math.random() < failChanceFor(pizza, kitchenCountAtStart, p.workers);
+
+        if (failed) {
+          var caught = Math.random() < CAUGHT_IN_KITCHEN_SHARE;
+          if (caught && pizza.remakes < 1) {
+            // Spotted before it left: remake part of it. Costs time, but no
+            // customer ever knows.
+            pizza.remakes += 1;
+            pizza.effortDone = pizza.effortRequired * (1 - REMAKE_EFFORT_FRACTION);
+            state.today.remadeCount += 1;
+            todayEvents.push({
+              kind: "remake",
+              message: "#" + pizza.id + " " + pizza.typeName + " wasn't right — caught it and started again.",
+            });
+            continue;
+          }
+          // It went out wrong. The customer will be back.
+          state.kitchen.splice(k, 1);
+          finishPizza(state, pizza, true);
+          state.pendingReturns.push({
+            orderId: pizza.id,
+            order: pizza,
+            dueTick:
+              state.tick +
+              RETURN_DELAY_TICKS_MIN +
+              Math.floor(Math.random() * (RETURN_DELAY_TICKS_MAX - RETURN_DELAY_TICKS_MIN + 1)),
+          });
+          continue;
+        }
+
+        state.kitchen.splice(k, 1);
+        finishPizza(state, pizza, false);
+      }
+    }
+
+    runQualityPass();
+
+    // 5. Start new pizzas in any free oven slot.
+    var newlyStarted = [];
+    while (state.kitchen.length < p.ovenSlots && state.queue.length > 0) {
+      var next = state.queue.shift();
+      next.startedTick = state.tick;
+      state.kitchen.push(next);
+      newlyStarted.push(next);
+    }
+
+    // 6. Capacity the finishers left over goes to what just started, rather
+    //    than evaporating — a cook who plates one pizza at 6:10 starts the
+    //    next at 6:11.
+    if (leftover > 1e-6 && newlyStarted.length) {
+      leftover = distributeEffort(newlyStarted, leftover);
+      runQualityPass();
+    }
+
+    todayEvents.forEach(function (e) {
+      logEvent(state, e.kind, e.message);
+    });
+
+    snapshot(state, leftover, todayEvents);
+
+    // 7. Closing time.
+    if (state.tick >= TICKS_PER_DAY) closeDay(state);
+
+    return state;
+  }
+
+  function finishPizza(state, pizza, wrong) {
+    pizza.deliveredTick = state.tick;
+    pizza.leadTimeMinutes = minutesSince(state, pizza.orderedTick);
+    pizza.cookTimeMinutes = minutesSince(state, pizza.startedTick);
+    pizza.wrong = wrong;
+    state.delivered.push(pizza);
+    state.today.revenue += pizza.price;
+    state.today.ingredientCost += pizza.ingredients;
+    state.today.deliveredCount += 1;
+  }
+
+  function rollingStats(state) {
+    var delivered = state.delivered;
+    var n = delivered.length;
+    var leadSum = 0,
+      cookSum = 0;
+    for (var i = 0; i < n; i++) {
+      leadSum += delivered[i].leadTimeMinutes;
+      cookSum += delivered[i].cookTimeMinutes;
+    }
+    var hoursElapsed = (state.tick * MINUTES_PER_TICK) / 60;
+    return {
+      avgLeadMinutes: n ? leadSum / n : 0,
+      avgCookMinutes: n ? cookSum / n : 0,
+      pizzasPerHour: hoursElapsed > 0 ? n / hoursElapsed : 0,
+      returnRate: n ? state.today.returnedCount / n : 0,
+    };
+  }
+
+  function snapshot(state, idleCapacity, todayEvents) {
+    var stats = rollingStats(state);
+    state.history.push({
+      day: state.day,
+      tick: state.tick,
+      clock: tickToClock(state.tick),
+      queueSize: state.queue.length,
+      kitchenSize: state.kitchen.length,
+      deliveredCount: state.delivered.length,
+      acceptedCount: state.today.acceptedCount,
+      avgLeadMinutes: stats.avgLeadMinutes,
+      avgCookMinutes: stats.avgCookMinutes,
+      pizzasPerHour: stats.pizzasPerHour,
+      returnRate: stats.returnRate,
+      idleCapacity: idleCapacity,
+      profitSoFar: dayProfit(state),
+      events: todayEvents || [],
+    });
+  }
+
+  function dayProfit(state) {
+    var t = state.today;
+    return (
+      t.revenue - t.refunds - t.ingredientCost - t.goodwill -
+      state.params.workers * WAGE_PER_WORKER_PER_DAY
+    );
+  }
+
+  /**
+   * Closing time. Anyone still waiting — in the queue or mid-bake — goes
+   * home without a pizza. We lose the sale, and for anything already in the
+   * oven we've burned the ingredients and the staff time too, which is
+   * exactly why accepting an order you can't finish costs more than never
+   * accepting it.
+   */
+  function closeDay(state) {
+    var stranded = state.queue.concat(state.kitchen);
+    stranded.forEach(function (order) {
+      state.walked.push(order);
+      state.today.walkedCount += 1;
+      state.today.goodwill += WALKED_CUSTOMER_GOODWILL;
+      if (order.startedTick != null) {
+        // Already started: the ingredients are gone.
+        state.today.ingredientCost += order.ingredients;
+      }
+    });
+    if (stranded.length) {
+      logEvent(
+        state,
+        "walked",
+        stranded.length + " customer(s) left without a pizza at closing — lost the sale" +
+          " and the ingredients on anything already in the oven."
+      );
+    }
+    state.queue = [];
+    state.kitchen = [];
+
+    // Pizzas that would have come back tomorrow never do — but we don't get
+    // to keep money for a pizza the customer was unhappy with either.
+    state.pendingReturns = [];
+
+    var profit = dayProfit(state);
+    state.cash += profit;
+    var stats = rollingStats(state);
+
+    state.days.push({
+      dayNumber: state.day,
+      workers: state.params.workers,
+      ovenSlots: state.params.ovenSlots,
+      closedEarlyAtTick: state.closedAtTick != null ? state.closedAtTick : null,
+      accepted: state.today.acceptedCount,
+      refused: state.today.refusedCount,
+      delivered: state.today.deliveredCount,
+      returned: state.today.returnedCount,
+      remade: state.today.remadeCount,
+      walked: state.today.walkedCount,
+      revenue: state.today.revenue,
+      refunds: state.today.refunds,
+      ingredientCost: state.today.ingredientCost,
+      goodwill: state.today.goodwill,
+      wages: state.params.workers * WAGE_PER_WORKER_PER_DAY,
+      profit: profit,
+      avgLeadMinutes: stats.avgLeadMinutes,
+      avgCookMinutes: stats.avgCookMinutes,
+      pizzasPerHour: stats.pizzasPerHour,
+    });
+
+    state.dayOver = true;
+  }
+
+  /** Roll the shutters into tomorrow: keeps cash and day history. */
+  function startNextDay(state) {
+    state.day += 1;
+    state.tick = 0;
+    state.dayOver = false;
+    state.arrivalAccumulator = 0;
+    state.queue = [];
+    state.kitchen = [];
+    state.delivered = [];
+    state.returned = [];
+    state.walked = [];
+    state.pendingReturns = [];
+    state.refusedCount = 0;
+    state.closedAtTick = null;
+    state.params.acceptingOrders = true;
+    state.today = newDayTotals();
+    state.events = [];
+    state.history = [];
+    return state;
+  }
+
+  function latestSnapshot(state) {
+    return state.history.length
+      ? state.history[state.history.length - 1]
+      : {
+          day: state.day,
+          tick: 0,
+          clock: tickToClock(0),
+          queueSize: 0,
+          kitchenSize: 0,
+          deliveredCount: 0,
+          acceptedCount: 0,
+          avgLeadMinutes: 0,
+          avgCookMinutes: 0,
+          pizzasPerHour: 0,
+          returnRate: 0,
+          idleCapacity: 0,
+          profitSoFar: -state.params.workers * WAGE_PER_WORKER_PER_DAY,
+          events: [],
+        };
+  }
+
+  return {
+    MINUTES_PER_TICK: MINUTES_PER_TICK,
+    TICKS_PER_DAY: TICKS_PER_DAY,
+    OPENING_HOUR: OPENING_HOUR,
+    CLOSING_HOUR: CLOSING_HOUR,
+    PIZZA_TYPES: PIZZA_TYPES,
+    DEFAULT_PARAMS: DEFAULT_PARAMS,
+    WAGE_PER_WORKER_PER_DAY: WAGE_PER_WORKER_PER_DAY,
+    DEMAND_BY_HOUR: DEMAND_BY_HOUR,
+    createShop: createShop,
+    setParams: setParams,
+    tick: tick,
+    closeDay: closeDay,
+    startNextDay: startNextDay,
+    latestSnapshot: latestSnapshot,
+    tickToClock: tickToClock,
+    tickToHour: tickToHour,
+    dayProfit: dayProfit,
+  };
+});
