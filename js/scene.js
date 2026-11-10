@@ -23,7 +23,12 @@
   var H = 800;
 
   var L = {
-    rail: { top: 30, h: 76, x0: 112, x1: 930 },      // waiting tickets
+    rail: { top: 30, h: 76, x0: 32, x1: 930 },       // waiting tickets
+    // "ORDERS WAITING" is painted into the background out at x=103, which
+    // left a dead strip of wall to its left and pushed the rail in behind
+    // it. The label is moved to the margin on load so the rail can start
+    // where the shop starts.
+    waitingLabelX: 28,
     counterTop: 312,                                   // ovens stand on this line
     oven: { x0: 215, x1: 1010, h: 124 },
     // Chefs stand BEHIND the counter: their base sits well below the counter
@@ -32,7 +37,11 @@
     // the counter is painted into the background and cannot overlap them.
     chef: { base: 330, h: 136, x0: 250, x1: 975 },
     wip: { top: 344, h: 72, x0: 200, x1: 1045 },       // tickets on the counter front
-    done: { x: 1108, top: 196, h: 62, step: 40, max: 6, stagger: 48 },
+    // The done pile fills the whole green panel (which is x 1087-1280,
+    // y 122-492 in the artwork). Every delivered order goes on it: the
+    // spacing closes up as the pile grows, so a busy night looks like a
+    // busy night instead of six tidy tickets and a hidden remainder.
+    done: { x: 1102, top: 166, bottom: 420, h: 62, step: 38, stagger: 30 },
     clock: { x: 1128, y: 44, w: 84, h: 38 },
     // The little screen on the cash register painted into the background.
     registerScreen: { x: 995, y: 491, w: 41, h: 22 },
@@ -132,10 +141,29 @@
 
     // The background is static, so it is built once.
     var bg = Assets.sprite("Background", { x: 0, y: 0, w: W, anchor: "topleft" });
+    moveWaitingLabel(bg);
     layers.bg.appendChild(bg);
 
     rollSkins();
     return svg;
+  }
+
+  /**
+   * Shift the "ORDERS WAITING" label to the left margin. It is drawn into
+   * Background.svg, so it cannot be repositioned at source without
+   * re-exporting the artwork; nudging the one text node on load is both
+   * reversible and keeps the artwork the single source of the wording.
+   */
+  function moveWaitingLabel(bg) {
+    var texts = bg.querySelectorAll("text");
+    for (var i = 0; i < texts.length; i++) {
+      if ((texts[i].textContent || "").trim() !== "ORDERS WAITING") continue;
+      var t = texts[i].getAttribute("transform") || "";
+      var m = /translate\(\s*[-\d.]+\s*[, ]\s*([-\d.]+)/.exec(t);
+      var y = m ? m[1] : "25.1";
+      texts[i].setAttribute("transform", "translate(" + L.waitingLabelX + " " + y + ")");
+      return;
+    }
   }
 
   // --- Ovens ---------------------------------------------------------------
@@ -210,7 +238,10 @@
     var q = state.queue;
     var max = 11;
     var shown = q.slice(0, max);
-    var xs = spread(shown.length, L.rail.x0, L.rail.x1, 70, true);
+    // spread() places CENTRES, so the span has to be pulled in by a ticket
+    // width or the last one hangs off the end of the rail and under the
+    // lever.
+    var xs = spread(shown.length, L.rail.x0, L.rail.x1 - 68, 70, true);
     shown.forEach(function (order, i) {
       var waited = (state.tick - order.orderedTick) * Shop.MINUTES_PER_TICK;
       var set = order.sentBack ? TICKET_SET.sentBack : TICKET_SET.waiting;
@@ -226,7 +257,7 @@
     });
     if (q.length > shown.length) {
       var more = el("text", {
-        x: L.rail.x1 + 26, y: L.rail.top + L.rail.h * 0.6,
+        x: L.rail.x1 + 16, y: L.rail.top + L.rail.h * 0.6,
         class: "scene-more", "text-anchor": "middle",
       });
       more.textContent = "+" + (q.length - shown.length);
@@ -266,6 +297,16 @@
     });
   }
 
+  /**
+   * A repeatable wobble per ticket, so the pile looks thrown together
+   * rather than ruled. Keyed on the order's id, so a ticket doesn't jump
+   * about between renders or while scrubbing back through the day.
+   */
+  function wobble(id, spread) {
+    var n = Math.sin(id * 12.9898) * 43758.5453;
+    return (n - Math.floor(n) - 0.5) * spread;
+  }
+
   function drawDone(state) {
     var returnedIds = {};
     state.returned.forEach(function (r) { returnedIds[r.id] = true; });
@@ -273,19 +314,29 @@
     var inFlight = {};
     state.queue.concat(state.kitchen).forEach(function (o) { inFlight[o.id] = true; });
     var finished = state.delivered.filter(function (o) { return !inFlight[o.id]; });
-    var recent = finished.slice(-L.done.max).reverse();
-    recent.forEach(function (order, i) {
+    if (!finished.length) return;
+
+    // Every delivered order is on the spike. The gap between them shrinks as
+    // the night goes on, so the pile stays inside its panel however big the
+    // day gets — thirty orders look like thirty orders, just closer packed.
+    var span = L.done.bottom - L.done.top - L.done.h;
+    var step = finished.length > 1
+      ? Math.max(4, Math.min(L.done.step, span / (finished.length - 1)))
+      : 0;
+
+    // Oldest first, so each new ticket lands ON TOP of the one before it and
+    // the most recent is the one you can read — the way a real spike fills.
+    finished.forEach(function (order, i) {
       var set = returnedIds[order.id] ? TICKET_SET.sentBack : TICKET_SET.done;
       var age = ageIndex(order.leadTimeMinutes || 0);
-      drawTicket(
-        layers.tickets,
-        set[age],
-        L.done.x + (i % 2) * L.done.stagger,
-        L.done.top + i * L.done.step,
-        L.done.h,
-        order,
-        (order.leadTimeMinutes || 0) + "m"
-      );
+      var x = L.done.x + (i % 2) * L.done.stagger + wobble(order.id, 14);
+      var y = L.done.top + i * step;
+      var g = el("g", {
+        transform: "rotate(" + wobble(order.id + 7, 9).toFixed(2) + " " +
+          (x + 28) + " " + (y + L.done.h / 2) + ")",
+      });
+      drawTicket(g, set[age], x, y, L.done.h, order, (order.leadTimeMinutes || 0) + "m");
+      layers.tickets.appendChild(g);
     });
   }
 

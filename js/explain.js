@@ -21,16 +21,46 @@
     return n + (Math.abs(n) === 1 ? " person" : " people");
   }
 
+  var PARAM_NAMES = { workers: "staff", ovenSlots: "oven slots" };
+
+  /** What a day OPENED with — the setting the between-day comparison is about. */
+  function opening(day, key) {
+    var start = key === "workers" ? day.startWorkers : day.startOvenSlots;
+    return start == null ? day[key] : start;
+  }
+
+  /**
+   * Mid-day moves, in order, with the time of each. Without this, a day you
+   * started with four ovens and finished with three gets reported as a
+   * three-oven day, which is not the day you ran.
+   */
+  function describeMidDay(day) {
+    var moves = day.paramChanges || [];
+    if (!moves.length) return null;
+    var told = moves.map(function (m) {
+      return PARAM_NAMES[m.param] + " " + m.from + " \u2192 " + m.to +
+        " at " + Shop.tickToClock(m.tick);
+    });
+    var text = "You changed things during the day: " + told.join(", ") + ". ";
+    var last = moves[moves.length - 1];
+    text += last.to > last.from
+      ? "Adding capacity part-way through only helps the orders still to come — anything already " +
+        "waiting has been waiting at the old rate all along, so the wait times take a while to recover."
+      : "Taking capacity away part-way through saves the wage, but everything still in the kitchen " +
+        "now moves slower, so the orders you had already promised are the ones that pay for it.";
+    return text;
+  }
+
   function describeChanges(current, previous) {
     var changes = [];
-    var dStaff = current.workers - previous.workers;
-    var dOven = current.ovenSlots - previous.ovenSlots;
+    var dStaff = opening(current, "workers") - previous.workers;
+    var dOven = opening(current, "ovenSlots") - previous.ovenSlots;
 
     if (dStaff !== 0) {
       changes.push({
         text:
           "You put " + Math.abs(dStaff) + " " + (dStaff > 0 ? "more" : "fewer") +
-          " staff on (" + previous.workers + " → " + current.workers + "). " +
+          " staff on (" + previous.workers + " → " + opening(current, "workers") + "). " +
           (dStaff > 0
             ? "More hands means more pizzas an hour — but wages are paid whether the orders come or not, so the extra only pays for itself if there's enough demand to use it."
             : "Fewer hands saves wages, but the kitchen gets through less, so orders sit waiting longer."),
@@ -38,10 +68,12 @@
     }
 
     if (dOven !== 0) {
-      var nowOver = current.ovenSlots > current.workers;
-      var nowUnder = current.ovenSlots < current.workers;
-      var text = "You moved the oven slots from " + previous.ovenSlots + " to " + current.ovenSlots +
-        " with " + people(current.workers) + " on shift. ";
+      var nowOven = opening(current, "ovenSlots");
+      var nowStaff = opening(current, "workers");
+      var nowOver = nowOven > nowStaff;
+      var nowUnder = nowOven < nowStaff;
+      var text = "You moved the oven slots from " + previous.ovenSlots + " to " + nowOven +
+        " with " + people(nowStaff) + " on shift. ";
       if (nowUnder) {
         text +=
           "That's fewer pizzas on the go than people to make them, so some staff have nothing to do — " +
@@ -81,8 +113,8 @@
   function dayDifference(current, previous) {
     if (!previous) {
       var out = [
-        "First day: " + people(current.workers) + " on shift, " +
-          current.ovenSlots + " oven slots. You took " + current.accepted + " orders, " +
+        "First day: " + people(opening(current, "workers")) + " on shift, " +
+          opening(current, "ovenSlots") + " oven slots. You took " + current.accepted + " orders, " +
           "turned away " + current.refused + ", and delivered " + current.delivered +
           " for " + (current.profit >= 0 ? "a profit of $" : "a loss of $") +
           Math.abs(Math.round(current.profit)) + ".",
@@ -95,6 +127,8 @@
           "Turning those orders away at the door would have cost you less."
         );
       }
+      var firstMid = describeMidDay(current);
+      if (firstMid) out.push(firstMid);
       if (current.ovenSlots < current.workers) {
         out.push(
           "Worth a look: you had fewer oven slots (" + current.ovenSlots + ") than staff (" +
@@ -126,6 +160,8 @@
     );
 
     var changes = describeChanges(current, previous);
+    var midDay = describeMidDay(current);
+    if (midDay) changes.push({ text: midDay });
 
     if (!changes.length) {
       var moved = Math.abs(dProfit) >= 10 || dWalked !== 0;

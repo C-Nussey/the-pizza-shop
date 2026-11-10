@@ -91,6 +91,10 @@
     16: 0.50, 17: 1.10, 18: 1.90, 19: 2.10, 20: 1.30,
   };
 
+  // The two levers worth remembering a mid-day change to. Intake is logged
+  // separately, as closedAtTick.
+  var TRACKED_PARAMS = ["workers", "ovenSlots"];
+
   var DEFAULT_PARAMS = {
     workers: 3,
     ovenSlots: 4,
@@ -105,13 +109,16 @@
     return OPENING_HOUR + Math.floor((tick * MINUTES_PER_TICK) / 60);
   }
 
+  /**
+   * 24-hour, to match the clock on the wall. Two clock formats on one
+   * screen ("Frozen at 1:15 PM" under a wall clock reading 13:15) makes
+   * the player do the conversion before they can trust either.
+   */
   function tickToClock(tick) {
     var totalMinutes = OPENING_HOUR * 60 + tick * MINUTES_PER_TICK;
     var h = Math.floor(totalMinutes / 60);
     var m = totalMinutes % 60;
-    var suffix = h >= 12 ? "PM" : "AM";
-    var display = h % 12 === 0 ? 12 : h % 12;
-    return display + ":" + (m < 10 ? "0" : "") + m + " " + suffix;
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
   }
 
   function rollComplexity() {
@@ -149,6 +156,8 @@
       events: [], // { tick, kind, message }
       history: [], // per-tick snapshot
       days: [], // completed day summaries
+      dayStart: { workers: p.workers, ovenSlots: p.ovenSlots },
+      paramChanges: [], // mid-day moves on the levers, with the time of each
       today: newDayTotals(),
     };
   }
@@ -169,8 +178,53 @@
     };
   }
 
+  /**
+   * Records a change to staffing or oven slots against the clock, so the
+   * day can later account for what it was actually run with. A day summary
+   * that only reports the settings as they stood at CLOSING time quietly
+   * misreports any day you adjusted halfway through — and adjusting
+   * halfway through is one of the moves the game is trying to teach.
+   */
   function setParams(state, partial) {
+    if ("acceptingOrders" in partial && !partial.acceptingOrders &&
+        state.params.acceptingOrders && !state.dayOver) {
+      state.closedAtTick = state.tick;
+    }
+    TRACKED_PARAMS.forEach(function (key) {
+      if (!(key in partial)) return;
+      var from = state.params[key];
+      var to = partial[key];
+      if (from === to || state.dayOver) return;
+      state.paramChanges.push({ tick: state.tick, param: key, from: from, to: to });
+    });
     Object.assign(state.params, partial);
+  }
+
+  /**
+   * Turn the raw click-by-click log into the moves a person would describe.
+   * Setting up before the shutters go up isn't a mid-day change, it's just
+   * how the day started; and six clicks on "+" at half past two is one
+   * decision, not six.
+   */
+  function condenseChanges(state) {
+    var start = {
+      workers: state.dayStart.workers,
+      ovenSlots: state.dayStart.ovenSlots,
+    };
+    var moves = [];
+    state.paramChanges.forEach(function (m) {
+      if (m.tick === 0) { start[m.param] = m.to; return; }
+      var last = null;
+      for (var i = moves.length - 1; i >= 0; i--) {
+        if (moves[i].param === m.param) { last = moves[i]; break; }
+      }
+      if (last && last.tick === m.tick) { last.to = m.to; return; }
+      moves.push({ tick: m.tick, param: m.param, from: m.from, to: m.to });
+    });
+    return {
+      start: start,
+      moves: moves.filter(function (m) { return m.from !== m.to; }),
+    };
   }
 
   function logEvent(state, kind, message) {
@@ -505,11 +559,17 @@
     var profit = dayProfit(state);
     state.cash += profit;
     var stats = rollingStats(state);
+    var settings = condenseChanges(state);
 
     state.days.push({
       dayNumber: state.day,
+      // What the day CLOSED with, and what it opened with. They differ
+      // whenever the player adjusted a lever during trading.
       workers: state.params.workers,
       ovenSlots: state.params.ovenSlots,
+      startWorkers: settings.start.workers,
+      startOvenSlots: settings.start.ovenSlots,
+      paramChanges: settings.moves,
       closedEarlyAtTick: state.closedAtTick != null ? state.closedAtTick : null,
       accepted: state.today.acceptedCount,
       refused: state.today.refusedCount,
@@ -545,6 +605,8 @@
     state.pendingReturns = [];
     state.refusedCount = 0;
     state.closedAtTick = null;
+    state.dayStart = { workers: state.params.workers, ovenSlots: state.params.ovenSlots };
+    state.paramChanges = [];
     // Each day starts with the shutters down: opening up is the player's
     // first decision of the morning, and it's what reveals the clock controls.
     state.params.acceptingOrders = false;

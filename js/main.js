@@ -15,12 +15,13 @@
   var running = false;
   var intervalId = null;
 
-  // A full clone per tick, so pressing and holding a chart can rebuild the
+  // A full clone per tick, so clicking back along a chart can rebuild the
   // shop exactly as it stood at that moment.
   var tickHistory = [];
   var scrubTick = null;
   var scrubState = null;
-  var wasRunningBeforeScrub = false;
+  var resumeAfterScrub = false;
+  var dragging = false;
 
   var dayHistory = [];
   var selectedDayIndex = null;
@@ -43,7 +44,9 @@
     daySummary: $("daySummary"), daySummaryTitle: $("daySummaryTitle"),
     daySummaryText: $("daySummaryText"), daySummaryNextBtn: $("daySummaryNextBtn"),
     dayHistory: $("dayHistory"), dayHistoryBody: $("dayHistoryBody"), dayExplain: $("dayExplain"),
+    daySummaryNote: $("daySummaryNote"),
     scrubBanner: $("scrubBanner"), scrubTooltip: $("scrubTooltip"),
+    scrubBannerText: $("scrubBannerText"), scrubBack: $("scrubBackBtn"),
   };
 
   var chartContainers = {
@@ -194,7 +197,8 @@
     renderGauge(view);
     renderCharts();
     updateScrubBanner();
-    if (!scrubState) els.playPause.hidden = !clockIsUseful();
+    els.playPause.hidden = !clockIsUseful();
+    updateDayPanel();
   }
 
   // --- Day loop ------------------------------------------------------------
@@ -208,7 +212,6 @@
     if (state.dayOver) {
       setRunning(false);
       recordDay();
-      showDaySummary();
     }
     renderAll();
   }
@@ -237,19 +240,89 @@
     }
   }
 
-  function showDaySummary() {
-    var d = state.days[state.days.length - 1];
-    els.daySummaryTitle.textContent =
-      "Day " + d.dayNumber + " — " + money(d.profit) + (d.profit >= 0 ? " profit" : " loss");
-    var parts = [
-      "Took " + d.accepted + " orders and turned away " + d.refused + ".",
-      "Delivered " + d.delivered + ".",
-    ];
-    if (d.walked) parts.push(d.walked + " customer(s) went home empty-handed.");
-    if (d.returned) parts.push(d.returned + " came back to be remade.");
-    parts.push("Average wait " + Math.round(d.avgLeadMinutes) + " minutes.");
-    els.daySummaryText.textContent = parts.join(" ");
-    els.daySummary.hidden = false;
+  function startOf(d, key) {
+    var v = key === "workers" ? d.startWorkers : d.startOvenSlots;
+    return v == null ? d[key] : v;
+  }
+
+  /**
+   * How the day was actually run, including anything moved part-way
+   * through. Reporting only the settings as they stood at closing time
+   * quietly misreports every day you adjusted — and adjusting is the point.
+   */
+  function settingsSentence(d) {
+    var base = "Ran with " + startOf(d, "workers") + " staff and " +
+      startOf(d, "ovenSlots") + " oven slots";
+    var moves = d.paramChanges || [];
+    if (!moves.length) return base + " all day.";
+    // Listed in full up to three; past that the detail belongs in the
+    // history below, not in a card that would grow off the counter.
+    var shown = moves.slice(0, 3).map(function (m) {
+      return (m.param === "workers" ? "staff" : "oven slots") +
+        " to " + m.to + " at " + Shop.tickToClock(m.tick);
+    });
+    var tail = moves.length > 3 ? ", and " + (moves.length - 3) + " more change" +
+      (moves.length - 3 === 1 ? "" : "s") : "";
+    return base + ", then " + shown.join(", then ") + tail +
+      " — finishing on " + d.workers + " staff and " + d.ovenSlots + " oven slots.";
+  }
+
+  /** Closed to new orders, nothing left to cook, and the clock not yet out. */
+  function dayCanBeWrappedUp() {
+    return !state.dayOver && !state.params.acceptingOrders &&
+      state.queue.length + state.kitchen.length === 0 && state.tick > 0;
+  }
+
+  /**
+   * The day's card. It is docked above the till rather than thrown across
+   * the middle of the shop, because the end of a day is exactly when you
+   * want to scrub back through the charts and look at what happened — and
+   * a panel in the way of that is a panel in the way of the lesson.
+   */
+  function updateDayPanel() {
+    if (state.dayOver) {
+      var d = state.days[state.days.length - 1];
+      if (!d) { els.daySummary.hidden = true; return; }
+      els.daySummaryTitle.textContent =
+        "Day " + d.dayNumber + " — " + money(Math.abs(d.profit)) +
+        (d.profit >= 0 ? " profit" : " loss");
+      var parts = [
+        "Took " + d.accepted + ", turned away " + d.refused + ", delivered " + d.delivered + ".",
+      ];
+      if (d.walked) parts.push(d.walked + " went home empty-handed.");
+      if (d.returned) parts.push(d.returned + " came back to be remade.");
+      parts.push("Average wait " + Math.round(d.avgLeadMinutes) + " min.");
+      parts.push(settingsSentence(d));
+      els.daySummaryText.textContent = parts.join(" ");
+      els.daySummaryNote.textContent = "Click along any chart to see what the shop looked like at that moment.";
+      els.daySummaryNextBtn.textContent = "Start the next day \u25B8";
+      els.daySummary.dataset.mode = "over";
+      els.daySummary.hidden = false;
+      return;
+    }
+
+    if (dayCanBeWrappedUp()) {
+      els.daySummaryTitle.textContent = "Nothing left to cook";
+      els.daySummaryText.textContent =
+        "It's " + Shop.tickToClock(state.tick) + ", the kitchen is clear and you're not taking orders. " +
+        "Pull the lever to open up again, or call it a night.";
+      els.daySummaryNote.textContent = "Staff go home when you close, so the wages stop here.";
+      els.daySummaryNextBtn.textContent = "Close up for the night \u25B8";
+      els.daySummary.dataset.mode = "ready";
+      els.daySummary.hidden = false;
+      return;
+    }
+
+    els.daySummary.hidden = true;
+  }
+
+  /** Shut up shop early. Nothing is in flight, so nothing is lost. */
+  function closeUpEarly() {
+    if (!dayCanBeWrappedUp()) return;
+    setRunning(false);
+    Shop.closeDay(state);
+    recordDay();
+    renderAll();
   }
 
   function startNextDay() {
@@ -258,7 +331,6 @@
     scrubTick = null;
     scrubState = null;
     Scene.rollSkins();
-    els.daySummary.hidden = true;
     setRunning(false);
     renderAll();
   }
@@ -270,6 +342,14 @@
     renderDayHistory();
   }
 
+  /** "3/4\u21923" — staffing and ovens, with any mid-day move shown as a move. */
+  function settingCell(d) {
+    var w = startOf(d, "workers");
+    var o = startOf(d, "ovenSlots");
+    return (w === d.workers ? w : w + "\u2192" + d.workers) + " / " +
+      (o === d.ovenSlots ? o : o + "\u2192" + d.ovenSlots);
+  }
+
   function renderDayHistory() {
     if (!dayHistory.length) { els.dayHistory.hidden = true; return; }
     els.dayHistory.hidden = false;
@@ -279,7 +359,7 @@
       if (i === selectedDayIndex) cls.push("run-row--selected");
       return '<tr class="' + cls.join(" ") + '" data-day-index="' + i +
         '" tabindex="0" role="button" aria-label="Explain day ' + d.dayNumber + '">' +
-        "<td>" + d.dayNumber + "</td><td>" + d.workers + "/" + d.ovenSlots + "</td>" +
+        "<td>" + d.dayNumber + "</td><td>" + settingCell(d) + "</td>" +
         "<td>" + d.accepted + "</td><td>" + d.refused + "</td><td>" + d.delivered + "</td>" +
         "<td>" + d.walked + "</td><td>" + d.returned + "</td>" +
         '<td class="' + (d.profit >= 0 ? "till-pos" : "till-neg") + '">' + money(d.profit) + "</td></tr>";
@@ -315,11 +395,21 @@
   }
 
   function updateScrubBanner() {
+    els.stage.classList.toggle("is-frozen", scrubTick != null);
     if (scrubTick == null) { els.scrubBanner.hidden = true; return; }
     els.scrubBanner.hidden = false;
-    els.scrubBanner.textContent =
-      "Looking back at " + Shop.tickToClock(scrubTick) +
-      " — release to return to " + Shop.tickToClock(state.tick);
+    var note = "";
+    if (scrubState) {
+      var pic = capacityPicture(scrubState);
+      var snap = Shop.latestSnapshot(scrubState);
+      note = " · " + snap.queueSize + " waiting, " + snap.kitchenSize + " cooking" +
+        (pic.ratio > 1 ? " · already more owed than there was time to cook it" : "");
+    }
+    els.scrubBannerText.textContent =
+      "Frozen at " + Shop.tickToClock(scrubTick) + note;
+    els.scrubBack.textContent = state.dayOver
+      ? "Back to closing time"
+      : "Back to " + Shop.tickToClock(state.tick);
   }
 
   function showScrubTooltip(clientX, clientY, view) {
@@ -360,16 +450,28 @@
       scrubState = stateForTick(t);
       renderAll();
     }
-    if (scrubState) showScrubTooltip(clientX, clientY, scrubState);
+    // The hovering card is for picking a moment out of the line. Once a
+    // moment is chosen the whole shop is showing it, so the card would
+    // only be sitting on top of the thing it was describing.
+    if (scrubState && dragging) showScrubTooltip(clientX, clientY, scrubState);
+    else els.scrubTooltip.hidden = true;
   }
 
-  function endScrub() {
+  /**
+   * Let the clock go again, back at the present. A frozen moment sticks
+   * until it is dismissed — holding the mouse still to keep a chart open
+   * means you can't point at anything you're looking at.
+   */
+  function endScrub(resume) {
     if (scrubTick == null) return;
     scrubTick = null;
     scrubState = null;
+    dragging = false;
     els.scrubTooltip.hidden = true;
+    var wanted = resumeAfterScrub;
+    resumeAfterScrub = false;
     renderAll();
-    if (wasRunningBeforeScrub) { wasRunningBeforeScrub = false; setRunning(true); }
+    if (resume || wanted) setRunning(true);
   }
 
   function bindScrubbing() {
@@ -382,24 +484,37 @@
         if (t == null) return;
         e.preventDefault();
         if (c.setPointerCapture) c.setPointerCapture(e.pointerId);
-        wasRunningBeforeScrub = running;
-        if (running) setRunning(false);
+        dragging = true;
+        // Freezing the shop pauses it; letting the clock run on behind a
+        // frozen picture would make the picture a lie within a second.
+        if (running) { resumeAfterScrub = true; setRunning(false); }
         applyScrub(t, e.clientX, e.clientY);
       });
+      // Dragging sweeps through the day; releasing leaves it where you let go.
       c.addEventListener("pointermove", function (e) {
-        if (scrubTick == null) return;
+        if (!dragging) return;
         applyScrub(Charts.dayAtClientX(c, e.clientX), e.clientX, e.clientY);
       });
       ["pointerup", "pointercancel"].forEach(function (evt) {
-        c.addEventListener(evt, endScrub);
+        c.addEventListener(evt, function () {
+          dragging = false;
+          els.scrubTooltip.hidden = true;
+          updateScrubBanner();
+        });
       });
     });
-    window.addEventListener("pointerup", endScrub);
-    window.addEventListener("blur", endScrub);
+    window.addEventListener("pointerup", function () { dragging = false; });
+    els.scrubBack.addEventListener("click", function () { endScrub(false); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") endScrub(false);
+    });
   }
 
   // --- Controls ------------------------------------------------------------
   function adjust(param, delta, min, max) {
+    // Changing a lever while looking at the past would apply to the present
+    // and show nothing, so come back to now first.
+    endScrub(false);
     var next = Math.max(min, Math.min(max, state.params[param] + delta));
     var patch = {};
     patch[param] = next;
@@ -412,12 +527,20 @@
   els.ovenUp.addEventListener("click", function () { adjust("ovenSlots", 1, 1, 8); });
   els.ovenDown.addEventListener("click", function () { adjust("ovenSlots", -1, 1, 8); });
 
-  els.playPause.addEventListener("click", function () { setRunning(!running); });
-  els.daySummaryNextBtn.addEventListener("click", startNextDay);
+  els.playPause.addEventListener("click", function () {
+    // Starting the clock again means coming back to the present.
+    if (scrubTick != null) { endScrub(true); return; }
+    setRunning(!running);
+  });
+  els.daySummaryNextBtn.addEventListener("click", function () {
+    if (state.dayOver) startNextDay();
+    else closeUpEarly();
+  });
   els.speed.addEventListener("input", function () { if (running) setRunning(true); });
 
   // The lever in the scene toggles intake.
   window.onLeverToggle = function () {
+    endScrub(false);
     Shop.setParams(state, { acceptingOrders: !state.params.acceptingOrders });
     // Closing up with an empty kitchen retires the clock; opening reveals it.
     setRunning(running && clockIsUseful());

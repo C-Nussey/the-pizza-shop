@@ -101,7 +101,7 @@
     <div class="chart-block"><h3>In the kitchen</h3><div class="chart-container" id="chartKitchen"></div></div>
     <div class="chart-block"><h3>Wait for a pizza (min)</h3><div class="chart-container" id="chartLead"></div></div>
     <div class="chart-block"><h3>Pizzas / hour</h3><div class="chart-container" id="chartRate"></div></div>
-    <p class="caption">Click and hold on a chart to see exactly what the shop looked like at that moment. Release to come back.</p>
+    <p class="caption">Click anywhere along a chart to freeze the shop at that moment — drag to sweep through the day. It stays put until you come back to now.</p>
   </div>
 
   <div class="panel till-panel" style="left:73.5%; top:82%; width:25.5%">
@@ -112,11 +112,21 @@
     <div class="till-rows" id="tillRows"></div>
   </div>
 
-  <div class="scrub-banner" id="scrubBanner" hidden></div>
+  <!-- Sits over the chart caption, where the eye already is after a click,
+       so freezing a moment never covers the shop you froze. -->
+  <div class="scrub-banner" id="scrubBanner" hidden style="left:31.5%; top:93.4%; width:38%">
+    <span id="scrubBannerText"></span>
+    <button type="button" id="scrubBackBtn">Back to now</button>
+  </div>
 
-  <div class="day-summary" id="daySummary" hidden>
+  <!-- Docked above the till rather than thrown across the middle of the
+       shop: the end of the day is exactly when you want to look back
+       through the charts, and a panel in the way of that is in the way of
+       the lesson. -->
+  <div class="day-summary" id="daySummary" hidden style="left:73.5%; bottom:18.5%; width:25.5%">
     <h3 id="daySummaryTitle">Closing time</h3>
     <p id="daySummaryText"></p>
+    <p class="day-summary-note" id="daySummaryNote"></p>
     <button type="button" id="daySummaryNextBtn">Start the next day &#9654;</button>
   </div>
 
