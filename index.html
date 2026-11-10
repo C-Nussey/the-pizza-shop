@@ -16,7 +16,7 @@
   <!-- ===== Overlaid controls, positioned against the artwork ===== -->
 
   <div class="panel stepper" style="left:1.4%; top:19.5%; width:11.5%">
-    <div class="stepper-label">Staff on shift <button type="button" class="info-icon" data-tip="workers" aria-label="What does Staff do?">i</button></div>
+    <div class="stepper-label"><span data-term="workers">Staff on shift</span> <button type="button" class="info-icon" data-tip="workers" aria-label="What does Staff do?">i</button></div>
     <div class="stepper-row">
       <button type="button" class="step-btn" id="workersDown" aria-label="Fewer staff">&minus;</button>
       <span class="stepper-value" id="workersValue">3</span>
@@ -26,12 +26,23 @@
   </div>
 
   <div class="panel stepper" style="left:1.4%; top:37%; width:11.5%">
-    <div class="stepper-label">Oven slots <button type="button" class="info-icon" data-tip="ovenSlots" aria-label="What are oven slots?">i</button></div>
+    <div class="stepper-label"><span data-term="ovenSlots">Oven slots</span> <button type="button" class="info-icon" data-tip="ovenSlots" aria-label="What are oven slots?">i</button></div>
     <div class="stepper-row">
       <button type="button" class="step-btn" id="ovenDown" aria-label="Fewer oven slots">&minus;</button>
       <span class="stepper-value" id="ovenSlotsValue">3</span>
       <button type="button" class="step-btn" id="ovenUp" aria-label="More oven slots">+</button>
     </div>
+  </div>
+
+  <!-- The vocabulary switch, and the way back to the shop's agreed rules.
+       Both sit in the gap between the oven stepper and the instruments. -->
+  <div class="panel side-panel" style="left:1.4%; top:48%; width:11.5%">
+    <label class="terms-switch">
+      <input type="checkbox" id="termsToggle" />
+      <span class="terms-track"><span class="terms-knob"></span></span>
+      <span class="terms-switch-label">Flow terms</span>
+    </label>
+    <button type="button" class="rules-link" id="rulesLink" data-term="rulesLink">House rules</button>
   </div>
 
   <!-- Play/pause sits to the right of the clock painted into the artwork.
@@ -55,41 +66,41 @@
   <div class="left-column" style="left:1.4%; top:54%; width:13%; height:44%">
   <div class="panel day-panel">
     <div class="day-big" id="dayValue">Day 1</div>
-    <div class="earnings-label">Total earnings</div>
+    <div class="earnings-label" data-term="earnings">Total earnings</div>
     <div class="earnings-value" id="cashValue">R0</div>
   </div>
 
   <div class="metric-stack">
     <div class="tile">
-      <div class="tile-label">Wait for a pizza <button type="button" class="info-icon" data-tip="leadTime" aria-label="What is this?">i</button></div>
+      <div class="tile-label"><span data-term="leadTime">Wait for a pizza</span> <button type="button" class="info-icon" data-tip="leadTime" aria-label="What is this?">i</button></div>
       <div class="tile-value" id="leadValue">0 min</div>
     </div>
     <div class="tile">
-      <div class="tile-label">Time in kitchen <button type="button" class="info-icon" data-tip="cookTime" aria-label="What is this?">i</button></div>
+      <div class="tile-label"><span data-term="cookTime">Time in kitchen</span> <button type="button" class="info-icon" data-tip="cookTime" aria-label="What is this?">i</button></div>
       <div class="tile-value" id="cookValue">0 min</div>
     </div>
     <div class="tile">
-      <div class="tile-label">Pizzas / hour <button type="button" class="info-icon" data-tip="throughput" aria-label="What is this?">i</button></div>
+      <div class="tile-label"><span data-term="throughput">Pizzas / hour</span> <button type="button" class="info-icon" data-tip="throughput" aria-label="What is this?">i</button></div>
       <div class="tile-value" id="rateValue">0.0</div>
     </div>
     <div class="tile">
-      <div class="tile-label">Sent back <button type="button" class="info-icon" data-tip="sentBack" aria-label="What is this?">i</button></div>
+      <div class="tile-label"><span data-term="sentBack">Sent back</span> <button type="button" class="info-icon" data-tip="sentBack" aria-label="What is this?">i</button></div>
       <div class="tile-value" id="sentBackValue">0</div>
     </div>
   </div>
   </div>
 
   <div class="panel gauge-panel" id="capacityGauge" style="left:16%; top:54%; width:14%; height:44%">
-    <div class="gauge-title">Can we still finish<br />our orders? <button type="button" class="info-icon" data-tip="capacityGauge" aria-label="How do I read this?">i</button></div>
+    <div class="gauge-title"><span data-term="gaugeTitle">Can we still finish<br />our orders?</span> <button type="button" class="info-icon" data-tip="capacityGauge" aria-label="How do I read this?">i</button></div>
     <div class="gauge-columns">
       <div class="gauge-col">
         <div class="gauge-vtrack"><span class="gauge-vfill gauge-vfill--committed" id="gaugeCommitted"></span></div>
-        <div class="gauge-cap">Committed</div>
+        <div class="gauge-cap" data-term="gaugeCommitted">Committed</div>
         <div class="gauge-num" id="gaugeCommittedNum">0m</div>
       </div>
       <div class="gauge-col">
         <div class="gauge-vtrack"><span class="gauge-vfill gauge-vfill--capacity" id="gaugeCapacity"></span></div>
-        <div class="gauge-cap">Time left</div>
+        <div class="gauge-cap" data-term="gaugeCapacity">Time left</div>
         <div class="gauge-num" id="gaugeCapacityNum">0m</div>
       </div>
     </div>
@@ -97,16 +108,16 @@
   </div>
 
   <div class="panel charts-panel" style="left:31.5%; top:54%; width:38%; height:44%">
-    <div class="chart-block"><h3>Orders waiting</h3><div class="chart-container" id="chartQueue"></div></div>
-    <div class="chart-block"><h3>In the kitchen</h3><div class="chart-container" id="chartKitchen"></div></div>
-    <div class="chart-block"><h3>Wait for a pizza (min)</h3><div class="chart-container" id="chartLead"></div></div>
-    <div class="chart-block"><h3>Pizzas / hour</h3><div class="chart-container" id="chartRate"></div></div>
+    <div class="chart-block"><h3 data-term="chartQueue">Orders waiting</h3><div class="chart-container" id="chartQueue"></div></div>
+    <div class="chart-block"><h3 data-term="chartKitchen">In the kitchen</h3><div class="chart-container" id="chartKitchen"></div></div>
+    <div class="chart-block"><h3 data-term="chartLead">Wait for a pizza (min)</h3><div class="chart-container" id="chartLead"></div></div>
+    <div class="chart-block"><h3 data-term="chartRate">Pizzas / hour</h3><div class="chart-container" id="chartRate"></div></div>
     <p class="caption">Click anywhere along a chart to freeze the shop at that moment — drag to sweep through the day. It stays put until you come back to now.</p>
   </div>
 
   <div class="panel till-panel" style="left:73.5%; top:82%; width:25.5%">
     <div class="till-header">
-      <span class="till-title">Today's till</span>
+      <span class="till-title" data-term="tillTitle">Today's till</span>
       <span class="till-profit" id="tillProfit">R0</span>
     </div>
     <div class="till-rows" id="tillRows"></div>
@@ -130,18 +141,27 @@
     <button type="button" id="daySummaryNextBtn">Start the next day &#9654;</button>
   </div>
 
+  <!-- Shown once before the first day, and reachable all game from the
+       House rules link. In flow terms the same five lines read as the
+       measurement charter a consultant agrees with a client in week one. -->
+  <div class="rules-card" id="rulesCard" hidden>
+    <h3 id="rulesTitle" data-term="rulesTitle">How this shop counts things</h3>
+    <ol class="rules-list" id="rulesList"></ol>
+    <button type="button" id="rulesCloseBtn" data-term="rulesClose">Got it — let's open up</button>
+  </div>
+
   <div class="loading" id="loading">Opening up the shop…</div>
 </div>
 
 <section class="run-history" id="dayHistory" aria-label="Day history" hidden>
   <div class="run-history-header">
-    <span class="run-history-title">Previous days</span>
+    <span class="run-history-title" data-term="historyTitle">Previous days</span>
     <button type="button" class="info-icon" data-tip="dayHistory" aria-label="What is this?">i</button>
   </div>
   <div class="run-history-table-wrap">
     <table class="run-history-table">
       <thead>
-        <tr><th>Day</th><th>Staff/Oven</th><th>Took</th><th>Turned away</th><th>Delivered</th><th>Walked</th><th>Sent back</th><th>Profit</th></tr>
+        <tr><th data-term="histDay">Day</th><th data-term="histSetup">Staff/Oven</th><th data-term="histTook">Took</th><th data-term="histTurned">Turned away</th><th data-term="histDelivered">Delivered</th><th data-term="histWalked">Walked</th><th data-term="histSentBack">Sent back</th><th data-term="histProfit">Profit</th></tr>
       </thead>
       <tbody id="dayHistoryBody"></tbody>
     </table>
@@ -153,6 +173,7 @@
 
 <script src="js/simulation.js"></script>
 <script src="js/charts.js"></script>
+<script src="js/terms.js"></script>
 <!-- Generated by tools/build-assets.js. Embeds the artwork so the shop
      opens straight from a file:// URL, with no web server. -->
 <script src="js/asset-data.js"></script>

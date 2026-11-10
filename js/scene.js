@@ -141,29 +141,52 @@
 
     // The background is static, so it is built once.
     var bg = Assets.sprite("Background", { x: 0, y: 0, w: W, anchor: "topleft" });
-    moveWaitingLabel(bg);
+    captureSigns(bg);
     layers.bg.appendChild(bg);
 
     rollSkins();
     return svg;
   }
 
+  // The three signs painted into Background.svg, by the words they carry.
+  // Held so the vocabulary switch can repaint them: when the game speaks
+  // flow metrics, the shop's own walls should too.
+  var SIGNS = {
+    "ORDERS WAITING": "signWaiting",
+    "ORDERS IN PROGRESS": "signProgress",
+    "ORDERS DONE": "signDone",
+  };
+  var signNodes = {};
+
   /**
-   * Shift the "ORDERS WAITING" label to the left margin. It is drawn into
-   * Background.svg, so it cannot be repositioned at source without
-   * re-exporting the artwork; nudging the one text node on load is both
-   * reversible and keeps the artwork the single source of the wording.
+   * Find the painted signs, and shift "ORDERS WAITING" to the left margin.
+   * The labels are drawn into Background.svg, so they cannot be moved or
+   * reworded at source without re-exporting the artwork; taking hold of the
+   * text nodes on load is reversible and keeps the artwork the single
+   * source of their placement.
    */
-  function moveWaitingLabel(bg) {
+  function captureSigns(bg) {
     var texts = bg.querySelectorAll("text");
     for (var i = 0; i < texts.length; i++) {
-      if ((texts[i].textContent || "").trim() !== "ORDERS WAITING") continue;
+      var words = (texts[i].textContent || "").trim();
+      if (!SIGNS[words]) continue;
+      signNodes[SIGNS[words]] = texts[i];
+      if (SIGNS[words] !== "signWaiting") continue;
       var t = texts[i].getAttribute("transform") || "";
       var m = /translate\(\s*[-\d.]+\s*[, ]\s*([-\d.]+)/.exec(t);
-      var y = m ? m[1] : "25.1";
-      texts[i].setAttribute("transform", "translate(" + L.waitingLabelX + " " + y + ")");
-      return;
+      texts[i].setAttribute("transform", "translate(" + L.waitingLabelX + " " + (m ? m[1] : "25.1") + ")");
     }
+    repaintSigns();
+  }
+
+  function repaintSigns() {
+    if (typeof Terms === "undefined") return;
+    Object.keys(signNodes).forEach(function (key) {
+      // The sign is one or more tspans; the first carries the words.
+      var node = signNodes[key];
+      var span = node.querySelector("tspan") || node;
+      span.textContent = Terms.get(key);
+    });
   }
 
   // --- Ovens ---------------------------------------------------------------
@@ -603,6 +626,7 @@
     init: init,
     render: render,
     rollSkins: rollSkins,
+    repaintSigns: repaintSigns,
     LAYOUT: L,
     SKIN_TONES: SKIN_TONES,
   };

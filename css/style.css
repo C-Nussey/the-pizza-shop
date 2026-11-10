@@ -437,3 +437,72 @@ body {
 }
 .tooltip-title { font-weight: 700; margin-bottom: 4px; }
 .tooltip-body { color: rgba(255,255,255,.9); }
+
+/* ===== Vocabulary switch, house rules ==================================== */
+
+/* The small panel between the oven stepper and the instruments. */
+.side-panel {
+  position: absolute;
+  display: flex; flex-direction: column; gap: .35em; align-items: flex-start;
+  padding: .5em .6em;
+}
+
+.terms-switch {
+  display: flex; align-items: center; gap: .4em;
+  cursor: pointer; font-size: .72em; font-weight: 650; color: var(--ink);
+}
+.terms-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.terms-track {
+  flex: none; width: 2.2em; height: 1.15em; border-radius: 1em;
+  background: #d8cfc2; border: 1px solid var(--crust);
+  position: relative; transition: background .18s ease;
+}
+.terms-knob {
+  position: absolute; top: .1em; left: .1em;
+  width: .85em; height: .85em; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 2px rgba(42,31,24,.35);
+  transition: transform .18s ease;
+}
+.terms-switch input:checked + .terms-track { background: var(--basil); }
+.terms-switch input:checked + .terms-track .terms-knob { transform: translateX(1.05em); }
+.terms-switch input:focus-visible + .terms-track { outline: 2px solid var(--basil); outline-offset: 2px; }
+
+.rules-link {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: .68em; color: var(--ink-soft);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.rules-link:hover { color: var(--ink); }
+
+/* On the first flip only: show that the labels changed, so the new names
+   are read as a mapping onto the old ones rather than as a different page. */
+@keyframes term-flash {
+  0%, 100% { background: transparent; }
+  25%, 60% { background: #ffe9a8; }
+}
+.term-flash { animation: term-flash 1.4s ease-in-out; border-radius: .25em; }
+
+.rules-card {
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  z-index: 60; width: 44%;
+  background: var(--paper); border: 2px solid var(--crust);
+  border-radius: .8em; padding: 1.1em 1.3em;
+  box-shadow: 0 16px 50px rgba(42,31,24,.35);
+}
+.rules-card[hidden] { display: none; }
+.rules-card h3 {
+  margin: 0 0 .6em; font-family: var(--hand); font-size: 1.35em; color: var(--ink);
+}
+.rules-list { margin: 0 0 1em; padding-left: 1.3em; }
+.rules-list li { font-size: .82em; line-height: 1.45; margin-bottom: .45em; }
+.rules-card button {
+  border: 1px solid var(--basil); background: var(--basil); color: #fff;
+  padding: .5em 1.1em; border-radius: .5em; font: inherit;
+  font-size: .85em; font-weight: 700; cursor: pointer;
+}
+
+.tooltip-flow {
+  margin: 0 0 .7em; padding-bottom: .7em;
+  border-bottom: 1px solid rgba(42,31,24,.15);
+  font-weight: 600;
+}

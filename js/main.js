@@ -22,6 +22,8 @@
   var scrubState = null;
   var resumeAfterScrub = false;
   var dragging = false;
+  // The rules card greets the player once; after that it is on request.
+  var openedOnce = false;
 
   var dayHistory = [];
   var selectedDayIndex = null;
@@ -45,6 +47,8 @@
     daySummaryText: $("daySummaryText"), daySummaryNextBtn: $("daySummaryNextBtn"),
     dayHistory: $("dayHistory"), dayHistoryBody: $("dayHistoryBody"), dayExplain: $("dayExplain"),
     daySummaryNote: $("daySummaryNote"),
+    termsToggle: $("termsToggle"), rulesLink: $("rulesLink"),
+    rulesCard: $("rulesCard"), rulesList: $("rulesList"), rulesClose: $("rulesCloseBtn"),
     scrubBanner: $("scrubBanner"), scrubTooltip: $("scrubTooltip"),
     scrubBannerText: $("scrubBannerText"), scrubBack: $("scrubBackBtn"),
   };
@@ -247,6 +251,28 @@
     if (running) {
       intervalId = setInterval(doTick, SPEED_INTERVALS_MS[Number(els.speed.value) - 1]);
     }
+  }
+
+  /**
+   * The shop's agreed rules. Shown once before the first day and reachable
+   * all game, so when the player wonders whether a returned pizza starts a
+   * new clock, the answer is already pinned up rather than guessed at.
+   */
+  function renderRules() {
+    els.rulesList.innerHTML = "";
+    Terms.rules().forEach(function (line) {
+      var li = document.createElement("li");
+      li.innerHTML = line;
+      els.rulesList.appendChild(li);
+    });
+    els.rulesClose.textContent = openedOnce
+      ? "Close"
+      : Terms.get("rulesClose");
+  }
+
+  function showRules() {
+    renderRules();
+    els.rulesCard.hidden = false;
   }
 
   function startOf(d, key) {
@@ -536,6 +562,47 @@
   els.ovenUp.addEventListener("click", function () { adjust("ovenSlots", 1, 1, 8); });
   els.ovenDown.addEventListener("click", function () { adjust("ovenSlots", -1, 1, 8); });
 
+  // --- Vocabulary -----------------------------------------------------------
+
+  var flashedTerms = false;
+
+  /**
+   * Flipping the switch renames everything at once: tiles, charts, the
+   * history columns, the tooltips and the signs on the wall. On the first
+   * flip the renamed labels flash, so the mapping is visible AS a mapping
+   * rather than as a page that quietly changed while you blinked.
+   */
+  function applyTerms() {
+    Terms.apply(document);
+    Scene.repaintSigns();
+    renderDayHistory();
+    if (!els.rulesCard.hidden) renderRules();
+    renderAll();
+    if (flashedTerms) return;
+    flashedTerms = true;
+    var nodes = document.querySelectorAll("[data-term]");
+    for (var i = 0; i < nodes.length; i++) nodes[i].classList.add("term-flash");
+    setTimeout(function () {
+      for (var j = 0; j < nodes.length; j++) nodes[j].classList.remove("term-flash");
+    }, 1400);
+  }
+
+  els.termsToggle.addEventListener("change", function () {
+    // Never disturbs the run: a coach has to be able to flip this
+    // mid-session to say "everything you just worked out has a name".
+    Terms.set(els.termsToggle.checked);
+    applyTerms();
+  });
+
+  els.rulesLink.addEventListener("click", function () {
+    if (els.rulesCard.hidden) showRules();
+    else els.rulesCard.hidden = true;
+  });
+  els.rulesClose.addEventListener("click", function () {
+    els.rulesCard.hidden = true;
+    openedOnce = true;
+  });
+
   els.playPause.addEventListener("click", function () {
     // Starting the clock again means coming back to the present.
     if (scrubTick != null) { endScrub(true); return; }
@@ -573,6 +640,9 @@
       Shop.setParams(state, { acceptingOrders: false });
       setRunning(false);
       renderAll();
+      // The agreed rules come before the first order, not after it: they
+      // are what every number in the game is counted against.
+      showRules();
     })
     .catch(function (err) {
       els.loading.textContent = "Couldn't load the shop artwork: " + err.message;
