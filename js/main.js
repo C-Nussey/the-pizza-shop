@@ -39,6 +39,7 @@
     ovenUp: $("ovenUp"), ovenDown: $("ovenDown"),
     playPause: $("playPauseBtn"), speed: $("speed"),
     lead: $("leadValue"), cook: $("cookValue"), rate: $("rateValue"), sentBack: $("sentBackValue"),
+    eff: $("effValue"), effFill: $("effFill"),
     gauge: $("capacityGauge"), gaugeCommitted: $("gaugeCommitted"),
     gaugeCapacity: $("gaugeCapacity"), gaugeVerdict: $("gaugeVerdict"),
     gaugeCommittedNum: $("gaugeCommittedNum"), gaugeCapacityNum: $("gaugeCapacityNum"),
@@ -170,6 +171,16 @@
     els.cook.textContent = Math.round(snap.avgCookMinutes) + " min";
     els.rate.textContent = snap.pizzasPerHour.toFixed(1);
     els.sentBack.textContent = s.today.returnedCount;
+
+    // Flow efficiency: the share of the customer's wait in which anyone was
+    // actually making their pizza. Both numbers are already on screen, one
+    // above the other, and nobody ever divides them — so the shop does it.
+    // It is the cheapest way to show that the queue, not the cooking, is
+    // where the time goes.
+    var eff = snap.avgLeadMinutes > 0 ? snap.avgCookMinutes / snap.avgLeadMinutes : 0;
+    var hasData = snap.avgLeadMinutes > 0;
+    els.eff.textContent = hasData ? Math.round(eff * 100) + "%" : "\u2014";
+    els.effFill.style.width = (hasData ? Math.min(100, eff * 100) : 0).toFixed(1) + "%";
   }
 
   function renderCharts() {

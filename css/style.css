@@ -275,7 +275,13 @@ body {
   text-transform: uppercase; letter-spacing: .01em; margin-bottom: .5em;
 }
 .gauge-columns { display: flex; gap: 0.9em; justify-content: center; flex: 1; }
-.gauge-col { display: flex; flex-direction: column; align-items: center; gap: .35em; flex: 1; }
+.gauge-col {
+  display: flex; flex-direction: column; align-items: center; gap: .35em;
+  flex: 1;
+  /* Without this a flex item refuses to shrink below its widest word, so
+     a long caption pushes the column out past the panel's edge. */
+  min-width: 0;
+}
 .gauge-vtrack {
   width: 2.6em; flex: 1; min-height: 5em;
   background: #f1e9dd; border-radius: .35em;
@@ -285,7 +291,8 @@ body {
 .gauge-vfill--committed { background: #9b9b9b; }
 .gauge-vfill--capacity { background: var(--basil); }
 .gauge-cap {
-  font-size: 0.72em; text-transform: uppercase; letter-spacing: .02em; color: var(--ink-soft);
+  font-size: 0.68em; text-transform: uppercase; letter-spacing: .02em; color: var(--ink-soft);
+  text-align: center; max-width: 100%; overflow-wrap: break-word; line-height: 1.2;
 }
 .gauge-num {
   font-size: 0.8em;
@@ -506,3 +513,19 @@ body {
   border-bottom: 1px solid rgba(42,31,24,.15);
   font-weight: 600;
 }
+
+/* The left-hand controls share one column with a fixed top and bottom, so
+   they cannot collide with each other or with the instruments below them
+   when the font renders a little larger than expected. */
+.left-controls {
+  position: absolute; z-index: 10;
+  display: flex; flex-direction: column; justify-content: space-between; gap: .4em;
+}
+.left-controls .panel { position: static; flex: 0 0 auto; }
+
+/* Flow efficiency: the split between cooking and waiting, under the number. */
+.eff-bar {
+  margin-top: .25em; height: .3em; border-radius: .3em;
+  background: #e4d9c8; overflow: hidden;
+}
+.eff-fill { display: block; height: 100%; background: var(--basil); transition: width .25s ease; }

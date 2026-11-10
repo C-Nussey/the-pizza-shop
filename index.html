@@ -15,7 +15,11 @@
 
   <!-- ===== Overlaid controls, positioned against the artwork ===== -->
 
-  <div class="panel stepper" style="left:1.4%; top:19.5%; width:11.5%">
+  <!-- The three left-hand controls share one column with a fixed top and
+       bottom, so they always sit comfortably inside it whatever the
+       font does. Positioning each one by percentage let them collide. -->
+  <div class="left-controls" style="left:1.4%; top:18.5%; width:11.5%; height:34.5%">
+  <div class="panel stepper">
     <div class="stepper-label"><span data-term="workers">Staff on shift</span> <button type="button" class="info-icon" data-tip="workers" aria-label="What does Staff do?">i</button></div>
     <div class="stepper-row">
       <button type="button" class="step-btn" id="workersDown" aria-label="Fewer staff">&minus;</button>
@@ -25,7 +29,7 @@
     <div class="stepper-cost" id="wageCost">R60 each a day</div>
   </div>
 
-  <div class="panel stepper" style="left:1.4%; top:37%; width:11.5%">
+  <div class="panel stepper">
     <div class="stepper-label"><span data-term="ovenSlots">Oven slots</span> <button type="button" class="info-icon" data-tip="ovenSlots" aria-label="What are oven slots?">i</button></div>
     <div class="stepper-row">
       <button type="button" class="step-btn" id="ovenDown" aria-label="Fewer oven slots">&minus;</button>
@@ -36,13 +40,14 @@
 
   <!-- The vocabulary switch, and the way back to the shop's agreed rules.
        Both sit in the gap between the oven stepper and the instruments. -->
-  <div class="panel side-panel" style="left:1.4%; top:48%; width:11.5%">
+  <div class="panel side-panel">
     <label class="terms-switch">
       <input type="checkbox" id="termsToggle" />
       <span class="terms-track"><span class="terms-knob"></span></span>
       <span class="terms-switch-label">Flow terms</span>
     </label>
     <button type="button" class="rules-link" id="rulesLink" data-term="rulesLink">House rules</button>
+  </div>
   </div>
 
   <!-- Play/pause sits to the right of the clock painted into the artwork.
@@ -78,6 +83,11 @@
     <div class="tile">
       <div class="tile-label"><span data-term="cookTime">Time in kitchen</span> <button type="button" class="info-icon" data-tip="cookTime" aria-label="What is this?">i</button></div>
       <div class="tile-value" id="cookValue">0 min</div>
+    </div>
+    <div class="tile">
+      <div class="tile-label"><span data-term="flowEfficiency">Actually cooking</span> <button type="button" class="info-icon" data-tip="flowEfficiency" aria-label="What is this?">i</button></div>
+      <div class="tile-value" id="effValue">—</div>
+      <div class="eff-bar"><span class="eff-fill" id="effFill"></span></div>
     </div>
     <div class="tile">
       <div class="tile-label"><span data-term="throughput">Pizzas / hour</span> <button type="button" class="info-icon" data-tip="throughput" aria-label="What is this?">i</button></div>

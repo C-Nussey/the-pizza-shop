@@ -29,20 +29,25 @@
   // key: [shop language, flow language]
   var WORDS = {
     // Controls
-    workers: ["Staff on shift", "Capacity (people)"],
+    // NOT "capacity": the gauge already uses that word for the work the
+    // shop can still get through before closing. People are an input to
+    // capacity, not capacity itself — and the game's own absorption cap
+    // means adding them does not raise it in proportion.
+    workers: ["Staff on shift", "Team size"],
     ovenSlots: ["Oven slots", "WIP limit"],
 
     // Tiles
     leadTime: ["Wait for a pizza", "Lead time"],
     cookTime: ["Time in kitchen", "Cycle time"],
     throughput: ["Pizzas / hour", "Throughput / hour"],
+    flowEfficiency: ["Actually cooking", "Flow efficiency"],
     sentBack: ["Sent back", "Escaped defects"],
     earnings: ["Total earnings", "Total earnings"],
 
     // The capacity gauge
     gaugeTitle: ["Can we still finish<br />our orders?", "Committed vs<br />capacity left"],
     gaugeCommitted: ["Committed", "Committed"],
-    gaugeCapacity: ["Time left", "Capacity left"],
+    gaugeCapacity: ["Time left", "Capacity"],
 
     // Charts
     chartQueue: ["Orders waiting", "Queue"],

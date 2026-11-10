@@ -12,9 +12,9 @@
   var DEFINITIONS = {
     workers: {
       title: "Staff on shift",
-      flowTitle: "Capacity (people)",
+      flowTitle: "Team size",
       flowBody:
-        "The people available to do the work. Capacity is what you have; throughput is what you actually get out of it, and the two are not the same number.",
+        "The people available to do the work. Team size is an input to capacity, not capacity itself: capacity is how much the team can actually get through in the time available, and adding people raises it less than in proportion \u2014 nobody can make three pizzas at once.",
       body:
         "How many people are making pizzas. Each person gets through about one pizza's worth of work at a time — you can't put three people on one margherita and have it done three times faster. You pay their wages whether or not any orders come in, so staff you don't need eat the day's profit.",
     },
@@ -57,6 +57,14 @@
         "Elapsed time from work starting to delivery. Cycle time shows where capacity is consumed in the active workflow. The gap between cycle time and lead time is queue — and in most systems the queue is the larger half.",
       body:
         "How long a pizza takes once someone actually starts making it. Compare it with the total wait: if the wait is 60 minutes and the cooking is 20, then two thirds of your customer's experience was them sitting there while nothing happened to their order.",
+    },
+    flowEfficiency: {
+      title: "Actually cooking",
+      flowTitle: "Flow efficiency",
+      flowBody:
+        "Cycle time as a share of lead time: the proportion of elapsed time in which work was actually being done on the item. A kitchen scores well, because the work is short and the queue is in plain sight on the board. Most knowledge-work systems measure between 5% and 25% \u2014 the waiting is the same, it is just invisible. Either way, the number moves by attacking queues and wait states, not by working faster.",
+      body:
+        "Of the time a customer spends waiting, this is the share where somebody was actually making their pizza. The rest of it was their order sitting on the board while other pizzas were made. It is almost always lower than people expect — and the way to raise it is hardly ever to cook faster.",
     },
     throughput: {
       title: "Pizzas per hour",
