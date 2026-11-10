@@ -246,14 +246,27 @@
       state.pendingReturns.splice(r, 1);
       var ret = pending.order;
       state.returned.push(ret);
-      state.today.refunds += ret.price;
       state.today.goodwill += RETURNED_GOODWILL;
       state.today.returnedCount += 1;
+
+      // The customer brings it back and wants the pizza they ordered. It
+      // goes straight back on the board to be made again, at our cost —
+      // which is the real sting: a returned pizza doesn't just cost money,
+      // it steals oven time from orders that haven't been started yet.
+      // It jumps the queue, the way an angry customer does.
+      ret.effortDone = 0;
+      ret.absorbedThisTick = 0;
+      ret.startedTick = null;
+      ret.sentBack = true;
+      ret.requeuedTick = state.tick;
+      state.queue.unshift(ret);
+
       todayEvents.push({
         kind: "returned",
         message:
-          "#" + ret.id + " " + ret.typeName + " came back — refunded $" + ret.price +
-          " and binned it. Caught in the kitchen it would have cost a remake.",
+          "#" + ret.id + " " + ret.typeName + " came back — remaking it for nothing, " +
+          "and it's jumped ahead of everyone still waiting. Caught in the kitchen it " +
+          "would only have cost us the remake.",
       });
     }
 
@@ -309,6 +322,11 @@
 
         var failed = Math.random() < failChanceFor(pizza, kitchenCountAtStart, p.workers);
 
+        // A pizza that has already been sent back once gets made properly
+        // the third time — nobody loops forever, and an unbounded remake
+        // cycle would just be noise rather than a lesson.
+        if (failed && (pizza.returnCount || 0) >= 2) failed = false;
+
         if (failed) {
           var caught = Math.random() < CAUGHT_IN_KITCHEN_SHARE;
           if (caught && pizza.remakes < 1) {
@@ -325,6 +343,7 @@
           }
           // It went out wrong. The customer will be back.
           state.kitchen.splice(k, 1);
+          pizza.returnCount = (pizza.returnCount || 0) + 1;
           finishPizza(state, pizza, true);
           state.pendingReturns.push({
             orderId: pizza.id,
@@ -378,10 +397,17 @@
     pizza.leadTimeMinutes = minutesSince(state, pizza.orderedTick);
     pizza.cookTimeMinutes = minutesSince(state, pizza.startedTick);
     pizza.wrong = wrong;
-    state.delivered.push(pizza);
-    state.today.revenue += pizza.price;
+
+    // Every bake costs ingredients, including a remake — that's the waste.
     state.today.ingredientCost += pizza.ingredients;
-    state.today.deliveredCount += 1;
+
+    // The customer only pays once, however many times we make it.
+    if (!pizza.revenueCounted) {
+      pizza.revenueCounted = true;
+      state.today.revenue += pizza.price;
+      state.today.deliveredCount += 1;
+      state.delivered.push(pizza);
+    }
   }
 
   function rollingStats(state) {

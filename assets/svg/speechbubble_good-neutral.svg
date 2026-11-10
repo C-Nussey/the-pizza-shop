@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Assets" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 98.02 75.19">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d4eef9;
+        filter: url(#drop-shadow-24);
+      }
+
+      .cls-2 {
+        filter: url(#drop-shadow-23);
+        opacity: .25;
+      }
+    </style>
+    <filter id="drop-shadow-23" x="3" y="2" width="93.67" height="71.7" filterUnits="userSpaceOnUse">
+      <feOffset dx="3" dy="2"/>
+      <feGaussianBlur result="blur" stdDeviation="0"/>
+      <feFlood flood-color="#000" flood-opacity=".21"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-24" x="0" y="0" width="93.67" height="71.7" filterUnits="userSpaceOnUse">
+      <feOffset dx="3" dy="2"/>
+      <feGaussianBlur result="blur-2" stdDeviation="0"/>
+      <feFlood flood-color="#000" flood-opacity=".21"/>
+      <feComposite in2="blur-2" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <path id="Speech_bubble_positive_neutral" data-name="Speech_bubble_positive/neutral" class="cls-2" d="M51.22,2C26.11,2,5.76,18.05,5.76,37.85c0,5.24,1.43,10.22,4,14.71h0s-6.75,10.54-6.75,10.54l12.07-3.54c8.31,8.59,21.4,14.14,36.15,14.14,25.11,0,45.46-16.05,45.46-35.85S76.32,2,51.22,2Z"/>
+  <path id="Speech_bubble_positive_neutral-2" data-name="Speech_bubble_positive/neutral" class="cls-1" d="M48.22,0C23.11,0,2.76,16.05,2.76,35.85c0,5.24,1.43,10.22,4,14.71h0S0,61.1,0,61.1l12.07-3.54c8.31,8.59,21.4,14.14,36.15,14.14,25.11,0,45.46-16.05,45.46-35.85S73.32,0,48.22,0Z"/>
+</svg>

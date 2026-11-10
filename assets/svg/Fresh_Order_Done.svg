@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Assets" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110.38 123.55">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #99d3b5;
+      }
+
+      .cls-2 {
+        opacity: .3;
+      }
+
+      .cls-3 {
+        fill: #666;
+      }
+
+      .cls-4 {
+        fill: #333;
+      }
+
+      .cls-5 {
+        font-family: handwriting, handwriting;
+        font-size: 20.07px;
+      }
+    </style>
+  </defs>
+  <g id="Fresh_Order_Done">
+    <g>
+      <polygon class="cls-2" points="105.89 118.31 6.26 123.55 0 7.7 94.49 8.34 105.89 118.31"/>
+      <polygon class="cls-1" points="110.38 112.45 10.75 117.69 0 7.7 98.99 2.48 110.38 112.45"/>
+      <text class="cls-5" transform="translate(15.9 38.69) rotate(-3.74)"><tspan x="0" y="0">Order #1</tspan><tspan x="0" y="24.08">1x Lrg</tspan><tspan x="0" y="48.16">2x Sml</tspan></text>
+    </g>
+    <rect class="cls-4" x="43.53" y="1.31" width="8.77" height="8.77" rx="4.38" ry="4.38"/>
+    <rect class="cls-3" x="44.12" y="0" width="9.24" height="9.24" rx="4.62" ry="4.62"/>
+  </g>
+</svg>

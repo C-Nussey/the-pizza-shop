@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Assets" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 114.02 127.62">
+  <defs>
+    <style>
+      .cls-1 {
+        opacity: .3;
+      }
+
+      .cls-2 {
+        fill: #e6a9ab;
+      }
+
+      .cls-3 {
+        fill: #666;
+      }
+
+      .cls-4 {
+        fill: #333;
+      }
+
+      .cls-5 {
+        fill: #c1272d;
+        font-family: Impact, Impact;
+        font-size: 22.04px;
+      }
+
+      .cls-6 {
+        font-family: handwriting, handwriting;
+        font-size: 20.73px;
+      }
+    </style>
+  </defs>
+  <g id="Fresh_Order_Sent_Back">
+    <g>
+      <polygon class="cls-1" points="109.37 122.21 6.46 127.62 0 7.96 97.6 8.61 109.37 122.21"/>
+      <polygon class="cls-2" points="114.02 116.15 11.11 121.57 0 7.96 102.25 2.56 114.02 116.15"/>
+      <text class="cls-6" transform="translate(16.42 39.96) rotate(-3.74)"><tspan x="0" y="0">Order #1</tspan><tspan x="0" y="24.88">1x Lrg</tspan><tspan x="0" y="49.75">2x Sml</tspan></text>
+      <text class="cls-5" transform="translate(11.01 114.34) rotate(-3.74)"><tspan x="0" y="0">SENT BACK!</tspan></text>
+    </g>
+    <rect class="cls-4" x="44.96" y="1.35" width="9.06" height="9.06" rx="4.53" ry="4.53"/>
+    <rect class="cls-3" x="45.57" y="0" width="9.55" height="9.55" rx="4.77" ry="4.77"/>
+  </g>
+</svg>

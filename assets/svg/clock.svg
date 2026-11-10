@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Tickets" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 99.52 87.13">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #1a1a1a;
+        filter: url(#drop-shadow-26);
+      }
+
+      .cls-2 {
+        filter: url(#drop-shadow-23);
+      }
+
+      .cls-2, .cls-3 {
+        fill: none;
+        stroke: #000;
+      }
+
+      .cls-4, .cls-5 {
+        fill: #666;
+      }
+
+      .cls-6 {
+        fill: #333;
+      }
+
+      .cls-3 {
+        filter: url(#drop-shadow-24);
+      }
+
+      .cls-5 {
+        filter: url(#drop-shadow-25);
+      }
+    </style>
+    <filter id="drop-shadow-23" x="10.61" y="8.71" width="39.46" height="32.96" filterUnits="userSpaceOnUse">
+      <feOffset dx="-2" dy="3"/>
+      <feGaussianBlur result="blur" stdDeviation="0"/>
+      <feFlood flood-color="#474747" flood-opacity=".25"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-24" x="48.45" y="8.7" width="39.84" height="29.97" filterUnits="userSpaceOnUse">
+      <feOffset dx="-1" dy="0"/>
+      <feGaussianBlur result="blur-2" stdDeviation="0"/>
+      <feFlood flood-color="#474747" flood-opacity=".25"/>
+      <feComposite in2="blur-2" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-25" x="2.83" y="38.28" width="96.13" height="45.58" filterUnits="userSpaceOnUse">
+      <feOffset dx="3" dy="3"/>
+      <feGaussianBlur result="blur-3" stdDeviation="0"/>
+      <feFlood flood-color="#474747" flood-opacity=".53"/>
+      <feComposite in2="blur-3" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-26" x="5.44" y="40.32" width="88.17" height="38.51" filterUnits="userSpaceOnUse">
+      <feOffset dx="2.78" dy="2.78"/>
+      <feGaussianBlur result="blur-4" stdDeviation="0"/>
+      <feFlood flood-color="#474747" flood-opacity=".53"/>
+      <feComposite in2="blur-4" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <line class="cls-2" x1="12.92" y1="38.28" x2="49.76" y2="9.1"/>
+  <g>
+    <line class="cls-3" x1="87.99" y1="38.28" x2="49.76" y2="9.1"/>
+    <rect class="cls-5" x="2.83" y="38.28" width="93.13" height="42.58" rx="3.03" ry="3.03"/>
+    <rect class="cls-1" x="5.44" y="40.32" width="88.17" height="38.51" rx="2.8" ry="2.8"/>
+    <rect class="cls-6" x="45.68" y="6.51" width="6.86" height="6.86" rx="3.43" ry="3.43"/>
+    <rect class="cls-4" x="46.14" y="5.48" width="7.24" height="7.24" rx="3.62" ry="3.62"/>
+  </g>
+</svg>

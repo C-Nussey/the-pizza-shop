@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Tickets" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 138.15 108.27">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #4d4d4d;
+      }
+
+      .cls-2 {
+        fill: #666;
+      }
+
+      .cls-3 {
+        fill: #333;
+      }
+
+      .cls-4 {
+        fill: #999;
+      }
+    </style>
+  </defs>
+  <rect class="cls-3" x="6.12" y="99.41" width="8.86" height="8.86" rx="3.62" ry="3.62"/>
+  <rect class="cls-3" x="121.66" y="99.41" width="8.86" height="8.86" rx="3.62" ry="3.62"/>
+  <rect class="cls-2" x="0" y="69.46" width="138.15" height="32.25"/>
+  <polygon class="cls-4" points="138.15 69.46 0 69.46 20.85 37.21 113.7 37.21 138.15 69.46"/>
+  <path class="cls-1" d="M120.93,66.74H17.22c-1.11,0-2.02-.91-2.02-2.02l-.77-7.67c-.64-6.39-.64-12.82-.02-19.21l.79-8.07c0-1.11.91-2.02,2.02-2.02h103.7c1.11,0,2.02.91,2.02,2.02l.67,7.2c.61,6.55.62,13.14.04,19.69l-.71,8.06c0,1.11-.91,2.02-2.02,2.02Z"/>
+  <rect class="cls-1" x="16.24" width="44.5" height="25.04" rx="2.56" ry="2.56"/>
+  <rect class="cls-1" x="28.13" y="25.04" width="20.32" height="2.72"/>
+  <rect x="18.69" y="1.38" width="39.6" height="22.29" rx="2.28" ry="2.28"/>
+</svg>
