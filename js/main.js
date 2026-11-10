@@ -138,10 +138,19 @@
     });
   }
 
+  /**
+   * Banked cash plus what today has made so far — where the shop stands
+   * right now. Once the day has closed the profit is already banked, so
+   * adding it again would count it twice.
+   */
+  function runningTotal(s) {
+    return s.dayOver ? s.cash : s.cash + Shop.dayProfit(s);
+  }
+
   function renderAll() {
     var view = scrubState || state;
     els.day.textContent = "Day " + view.day;
-    els.cash.textContent = money(view.cash);
+    els.cash.textContent = money(runningTotal(view));
     els.workersValue.textContent = view.params.workers;
     els.ovenSlotsValue.textContent = view.params.ovenSlots;
     Scene.render(view);

@@ -51,13 +51,14 @@
 
   <!-- ===== Instruments, in the lower band of the artwork ===== -->
 
-  <div class="panel day-panel" style="left:1.4%; top:54%; width:13%">
+  <div class="left-column" style="left:1.4%; top:54%; width:13%; height:44%">
+  <div class="panel day-panel">
     <div class="day-big" id="dayValue">Day 1</div>
     <div class="earnings-label">Total earnings</div>
     <div class="earnings-value" id="cashValue">$0</div>
   </div>
 
-  <div class="metric-stack" style="left:1.4%; top:70%; width:13%">
+  <div class="metric-stack">
     <div class="tile">
       <div class="tile-label">Wait for a pizza <button type="button" class="info-icon" data-tip="leadTime" aria-label="What is this?">i</button></div>
       <div class="tile-value" id="leadValue">0 min</div>
@@ -75,8 +76,9 @@
       <div class="tile-value" id="sentBackValue">0</div>
     </div>
   </div>
+  </div>
 
-  <div class="panel gauge-panel" id="capacityGauge" style="left:16%; top:54%; width:14%">
+  <div class="panel gauge-panel" id="capacityGauge" style="left:16%; top:54%; width:14%; height:44%">
     <div class="gauge-title">Can we still finish<br />our orders? <button type="button" class="info-icon" data-tip="capacityGauge" aria-label="How do I read this?">i</button></div>
     <div class="gauge-columns">
       <div class="gauge-col">
@@ -91,7 +93,7 @@
     <div class="gauge-verdict" id="gaugeVerdict">Kitchen's clear</div>
   </div>
 
-  <div class="panel charts-panel" style="left:31.5%; top:54%; width:38%">
+  <div class="panel charts-panel" style="left:31.5%; top:54%; width:38%; height:44%">
     <div class="chart-block"><h3>Orders waiting</h3><div class="chart-container" id="chartQueue"></div></div>
     <div class="chart-block"><h3>In the kitchen</h3><div class="chart-container" id="chartKitchen"></div></div>
     <div class="chart-block"><h3>Wait for a pizza (min)</h3><div class="chart-container" id="chartLead"></div></div>
@@ -99,7 +101,7 @@
     <p class="caption">Click and hold on a chart to see exactly what the shop looked like at that moment. Release to come back.</p>
   </div>
 
-  <div class="panel till-panel" style="left:73%; top:66%; width:25%">
+  <div class="panel till-panel" style="left:73.5%; top:82%; width:25.5%">
     <div class="till-header">
       <span class="till-title">Today's till</span>
       <span class="till-profit" id="tillProfit">$0</span>

@@ -80,6 +80,13 @@ body {
   letter-spacing: 1px;
 }
 .bubble-text { font-size: 13px; fill: var(--ink); }
+.register-digits {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  fill: #7dff6a;
+  letter-spacing: .5px;
+}
 .scene-more { font-size: 22px; fill: #fff; opacity: 0.85; }
 
 /* Dotted line from a ticket to the oven its pizza is in. */
@@ -202,24 +209,45 @@ body {
 }
 .speed-row input { flex: 1; min-width: 0; accent-color: var(--crust); }
 
-/* --- Day / earnings --- */
-.day-panel { text-align: center; }
-.day-big { font-family: var(--hand); font-size: 2.1em; line-height: 1; }
-.earnings-label {
-  font-size: 0.72em; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--ink-soft); margin-top: .5em;
+/* --- Day / earnings + tiles: one column sized to the band --- */
+/* The day heading used to be large enough to push the bottom tile off the
+   stage. The column now has a fixed height and the tiles share whatever is
+   left, so they always fit however tall the stage is drawn. */
+.left-column {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
 }
-.earnings-value { font-size: 1.5em; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Children of the column flow inside it; .panel and .metric-stack are
+   absolutely positioned by default, which would stack them on top of
+   each other instead. */
+.left-column .panel,
+.left-column .metric-stack { position: static; }
+
+.day-panel { text-align: center; padding: 0.45em 0.6em; flex-shrink: 0; }
+.day-big { font-family: var(--hand); font-size: 1.5em; line-height: 1.05; }
+.earnings-label {
+  font-size: 0.64em; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-soft); margin-top: .15em;
+}
+.earnings-value { font-size: 1.15em; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* --- Metric tiles --- */
-.metric-stack { display: flex; flex-direction: column; gap: 0.4em; }
+.metric-stack { display: flex; flex-direction: column; gap: 0.4em; flex: 1; min-height: 0; }
 .tile {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 0.6em;
-  padding: 0.4em 0.5em;
+  padding: 0.3em 0.5em;
   text-align: center;
   box-shadow: 0 2px 8px rgba(42, 31, 24, 0.1);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .tile-label {
   font-size: 0.72em; text-transform: uppercase; letter-spacing: .02em;
@@ -254,7 +282,8 @@ body {
 .gauge--over .gauge-vfill--committed { background: var(--tomato); }
 
 /* --- Charts --- */
-.charts-panel { display: flex; flex-direction: column; gap: .2em; }
+.charts-panel { display: flex; flex-direction: column; gap: .2em; overflow: hidden; }
+.charts-panel .chart-block { flex: 1; min-height: 0; }
 .chart-block h3 {
   font-size: .8em; font-weight: 700; margin: 0; color: var(--ink);
 }

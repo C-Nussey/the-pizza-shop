@@ -34,6 +34,8 @@
     wip: { top: 344, h: 72, x0: 200, x1: 1045 },       // tickets on the counter front
     done: { x: 1108, top: 196, h: 62, step: 40, max: 6, stagger: 48 },
     clock: { x: 1128, y: 44, w: 84, h: 38 },
+    // The little screen on the cash register painted into the background.
+    registerScreen: { x: 995, y: 491, w: 41, h: 22 },
     lever: { x: 985, y: 16, w: 42 },    // beside the clock in the artwork
   };
 
@@ -309,6 +311,19 @@
     t.textContent = clock24(state.tick);
     layers.ui.appendChild(t);
 
+    // Running total on the register's own screen, the way a real till
+    // shows it — rather than only in a panel beside it.
+    var takings = el("text", {
+      x: L.registerScreen.x + L.registerScreen.w / 2,
+      y: L.registerScreen.y + L.registerScreen.h * 0.72,
+      class: "register-digits",
+      "text-anchor": "middle",
+    });
+    takings.textContent = formatMoney(
+      state.dayOver ? state.cash : state.cash + Shop.dayProfit(state)
+    );
+    layers.ui.appendChild(takings);
+
     // A chef says what is going wrong, when something is.
     var line = sceneMessage(state);
     if (line && chefs.length) {
@@ -343,6 +358,15 @@
       });
       layers.ui.appendChild(tx);
     }
+  }
+
+  /** Short money for the register screen, which is only ~40 units wide. */
+  function formatMoney(n) {
+    var v = Math.round(n);
+    var sign = v < 0 ? "-" : "";
+    v = Math.abs(v);
+    if (v >= 10000) return sign + "$" + (v / 1000).toFixed(1) + "k";
+    return sign + "$" + v;
   }
 
   /** 24-hour clock: "16:00" can't be misread as four in the morning. */
