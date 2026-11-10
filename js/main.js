@@ -38,6 +38,7 @@
     lead: $("leadValue"), cook: $("cookValue"), rate: $("rateValue"), sentBack: $("sentBackValue"),
     gauge: $("capacityGauge"), gaugeCommitted: $("gaugeCommitted"),
     gaugeCapacity: $("gaugeCapacity"), gaugeVerdict: $("gaugeVerdict"),
+    gaugeCommittedNum: $("gaugeCommittedNum"), gaugeCapacityNum: $("gaugeCapacityNum"),
     tillRows: $("tillRows"), tillProfit: $("tillProfit"),
     daySummary: $("daySummary"), daySummaryTitle: $("daySummaryTitle"),
     daySummaryText: $("daySummaryText"), daySummaryNextBtn: $("daySummaryNextBtn"),
@@ -79,11 +80,39 @@
     };
   }
 
+  /** Kitchen-minutes, in words. The gauge's units are cooking time. */
+  function asDuration(minutes) {
+    var m = Math.max(0, Math.round(minutes));
+    if (m < 60) return m + "m";
+    return Math.floor(m / 60) + "h " + (m % 60) + "m";
+  }
+
   function renderGauge(s) {
     var pic = capacityPicture(s);
-    var max = Math.max(pic.committed, pic.capacityLeft, 1) * 1.05;
-    els.gaugeCommitted.style.height = ((pic.committed / max) * 100).toFixed(1) + "%";
-    els.gaugeCapacity.style.height = ((pic.capacityLeft / max) * 100).toFixed(1) + "%";
+
+    // Both bars are drawn against a FIXED scale — a whole day's cooking at
+    // this staffing — so they can be compared over time. Scaling to the
+    // current values instead (as this did) pinned whichever bar was larger
+    // at full height every render, so "time left" never appeared to move
+    // even as the day ran out.
+    var perTick = Math.max(1, Math.min(s.params.workers, s.params.ovenSlots));
+    var dayCapacity = Shop.TICKS_PER_DAY * perTick;
+    var scale = Math.max(dayCapacity, pic.committed, 1);
+
+    els.gaugeCommitted.style.height =
+      Math.min(100, (pic.committed / scale) * 100).toFixed(1) + "%";
+    els.gaugeCapacity.style.height =
+      Math.min(100, (pic.capacityLeft / scale) * 100).toFixed(1) + "%";
+
+    // Said in minutes of cooking, which is far more use than an abstract
+    // unit: "40m of cooking owed against 3h of kitchen left" explains
+    // itself in a way that two unlabelled bars never will.
+    if (els.gaugeCommittedNum) {
+      els.gaugeCommittedNum.textContent = asDuration((pic.committed / perTick) * Shop.MINUTES_PER_TICK);
+    }
+    if (els.gaugeCapacityNum) {
+      els.gaugeCapacityNum.textContent = asDuration((pic.capacityLeft / perTick) * Shop.MINUTES_PER_TICK);
+    }
 
     els.gauge.classList.remove("gauge--ok", "gauge--tight", "gauge--over");
     var verdict;

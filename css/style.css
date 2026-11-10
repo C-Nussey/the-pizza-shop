@@ -282,6 +282,12 @@ body {
 .gauge-cap {
   font-size: 0.72em; text-transform: uppercase; letter-spacing: .02em; color: var(--ink-soft);
 }
+.gauge-num {
+  font-size: 0.8em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
 .gauge-verdict { margin-top: .5em; font-size: .85em; font-weight: 700; text-align: center; }
 .gauge--ok .gauge-verdict { color: var(--basil); }
 .gauge--tight .gauge-verdict { color: #a9731c; }
