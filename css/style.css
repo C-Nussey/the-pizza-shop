@@ -167,6 +167,14 @@ body {
 }
 .step-btn:hover { color: var(--tomato); }
 .step-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+/* The wage bill belongs on the control that creates it, not only in the
+   till at the end of the day. */
+.stepper-cost {
+  font-size: 0.68em;
+  color: var(--ink-soft);
+  margin-top: 0.15em;
+  white-space: nowrap;
+}
 
 /* --- Clock-side controls --- */
 /* Play/pause lives beside the clock that is painted into the artwork, and

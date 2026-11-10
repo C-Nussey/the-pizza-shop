@@ -31,6 +31,7 @@
     stage: $("stage"), scene: $("scene"), loading: $("loading"),
     day: $("dayValue"), cash: $("cashValue"),
     workersValue: $("workersValue"), ovenSlotsValue: $("ovenSlotsValue"),
+    wageCost: $("wageCost"),
     workersUp: $("workersUp"), workersDown: $("workersDown"),
     ovenUp: $("ovenUp"), ovenDown: $("ovenDown"),
     playPause: $("playPauseBtn"), speed: $("speed"),
@@ -101,13 +102,13 @@
 
   function renderTill(s) {
     var t = s.today;
-    var wages = s.params.workers * Shop.WAGE_PER_WORKER_PER_DAY;
-    var profit = t.revenue - t.refunds - t.ingredientCost - t.goodwill - wages;
+    var wages = t.wagesAccrued;
+    var profit = Shop.dayProfit(s);
     var rows = [
       { label: "Pizzas sold (" + t.deliveredCount + ")", value: t.revenue },
       { label: "Ingredients" + (t.returnedCount ? " (incl. " + t.returnedCount + " remade)" : ""), value: -t.ingredientCost },
       { label: "Lost goodwill", value: -t.goodwill },
-      { label: "Wages (" + s.params.workers + " on shift)", value: -wages },
+      { label: "Wages so far (" + s.params.workers + " on shift)", value: -wages },
     ];
     els.tillRows.innerHTML = rows.map(function (r) {
       var cls = r.value > 0 ? "till-pos" : r.value < 0 ? "till-neg" : "";
@@ -152,6 +153,11 @@
     els.day.textContent = "Day " + view.day;
     els.cash.textContent = money(runningTotal(view));
     els.workersValue.textContent = view.params.workers;
+    if (els.wageCost) {
+      els.wageCost.textContent =
+        "$" + Shop.WAGE_PER_WORKER_PER_DAY + " each = " +
+        money(view.params.workers * Shop.WAGE_PER_WORKER_PER_DAY) + "/day";
+    }
     els.ovenSlotsValue.textContent = view.params.ovenSlots;
     Scene.render(view);
     renderTiles(view);

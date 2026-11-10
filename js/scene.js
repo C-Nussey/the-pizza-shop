@@ -23,7 +23,7 @@
   var H = 800;
 
   var L = {
-    rail: { top: 24, h: 80, x0: 124, x1: 952 },      // waiting tickets
+    rail: { top: 30, h: 76, x0: 112, x1: 930 },      // waiting tickets
     counterTop: 312,                                   // ovens stand on this line
     oven: { x0: 215, x1: 1010, h: 124 },
     // Chefs stand BEHIND the counter: their base sits well below the counter
@@ -36,7 +36,7 @@
     clock: { x: 1128, y: 44, w: 84, h: 38 },
     // The little screen on the cash register painted into the background.
     registerScreen: { x: 995, y: 491, w: 41, h: 22 },
-    lever: { x: 985, y: 16, w: 42 },    // beside the clock in the artwork
+    lever: { x: 980, y: 11, w: 53 },    // beside the clock in the artwork
   };
 
   // Her palette, applied per chef so a row doesn't look cloned.

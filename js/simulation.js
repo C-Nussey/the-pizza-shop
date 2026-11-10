@@ -155,6 +155,7 @@
 
   function newDayTotals() {
     return {
+      wagesAccrued: 0,
       revenue: 0,
       ingredientCost: 0,
       refunds: 0,
@@ -236,6 +237,9 @@
     var p = state.params;
     state.tick += 1;
     var todayEvents = [];
+
+    // The people on shift get paid for the time they are on shift.
+    state.today.wagesAccrued += wagesPerTick(state);
 
     // 1. Customers who were unhappy bring their pizza back. This is the
     //    expensive failure: we already gave it away, so we refund it, bin
@@ -448,12 +452,21 @@
     });
   }
 
+  /**
+   * Wages are accrued as the day runs rather than charged in full at
+   * opening. Charging the lump up front made the till read as a heavy loss
+   * all morning and claw back by evening, which buried the signal the
+   * player is supposed to read — and it made sending staff home during the
+   * afternoon lull worth nothing, when it should be the obvious move.
+   */
   function dayProfit(state) {
     var t = state.today;
-    return (
-      t.revenue - t.refunds - t.ingredientCost - t.goodwill -
-      state.params.workers * WAGE_PER_WORKER_PER_DAY
-    );
+    return t.revenue - t.refunds - t.ingredientCost - t.goodwill - t.wagesAccrued;
+  }
+
+  /** What the staff currently on shift cost per 15-minute slice. */
+  function wagesPerTick(state) {
+    return (state.params.workers * WAGE_PER_WORKER_PER_DAY) / TICKS_PER_DAY;
   }
 
   /**
@@ -508,7 +521,7 @@
       refunds: state.today.refunds,
       ingredientCost: state.today.ingredientCost,
       goodwill: state.today.goodwill,
-      wages: state.params.workers * WAGE_PER_WORKER_PER_DAY,
+      wages: state.today.wagesAccrued,
       profit: profit,
       avgLeadMinutes: stats.avgLeadMinutes,
       avgCookMinutes: stats.avgCookMinutes,
@@ -557,7 +570,7 @@
           pizzasPerHour: 0,
           returnRate: 0,
           idleCapacity: 0,
-          profitSoFar: -state.params.workers * WAGE_PER_WORKER_PER_DAY,
+          profitSoFar: 0,
           events: [],
         };
   }
@@ -580,5 +593,6 @@
     tickToClock: tickToClock,
     tickToHour: tickToHour,
     dayProfit: dayProfit,
+    wagesPerTick: wagesPerTick,
   };
 });
