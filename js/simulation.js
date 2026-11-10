@@ -532,7 +532,9 @@
     state.pendingReturns = [];
     state.refusedCount = 0;
     state.closedAtTick = null;
-    state.params.acceptingOrders = true;
+    // Each day starts with the shutters down: opening up is the player's
+    // first decision of the morning, and it's what reveals the clock controls.
+    state.params.acceptingOrders = false;
     state.today = newDayTotals();
     state.events = [];
     state.history = [];

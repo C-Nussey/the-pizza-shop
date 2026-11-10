@@ -162,30 +162,45 @@ body {
 .step-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* --- Clock-side controls --- */
-.clock-controls { display: flex; flex-direction: column; gap: 0.45em; align-items: flex-end; }
-.clock-row { display: flex; gap: 0.4em; }
-.run-btn, .ghost-btn {
-  font-family: var(--ui);
-  font-size: 0.92em;
-  font-weight: 650;
-  padding: 0.45em 0.9em;
-  border-radius: 0.5em;
+/* Play/pause lives beside the clock that is painted into the artwork, and
+   only appears when running the clock would do something. */
+.play-pause {
+  position: absolute;
+  z-index: 12;
+  width: 3.6%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 0.55em;
+  background: var(--basil);
+  box-shadow: 0 2px 6px rgba(42, 31, 24, 0.3);
   cursor: pointer;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  color: var(--ink);
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.run-btn { background: var(--basil); border-color: var(--basil); color: #fff; min-width: 6em; }
-.run-btn.is-running { background: var(--tomato); border-color: var(--tomato); }
-.run-btn:disabled, .ghost-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-#nextDayBtn { background: var(--crust); border-color: var(--crust); color: #fff; }
+/* display:flex above would otherwise beat the browser's [hidden] rule. */
+.play-pause[hidden] { display: none; }
+.play-pause:hover { filter: brightness(1.08); }
+.play-pause svg { width: 68%; height: 68%; fill: #fff; }
+.play-pause .icon-pause { display: none; }
+/* Running: red, showing the pause bars. */
+.play-pause.is-running { background: var(--tomato); }
+.play-pause.is-running .icon-play { display: none; }
+.play-pause.is-running .icon-pause { display: block; }
+
 .speed-row {
-  display: flex; align-items: center; gap: 0.45em;
-  font-size: 0.85em; color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  position: absolute;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: 0.95em;
+  font-family: var(--hand);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
-.speed-row input { width: 7.5em; accent-color: var(--crust); }
+.speed-row input { flex: 1; min-width: 0; accent-color: var(--crust); }
 
 /* --- Day / earnings --- */
 .day-panel { text-align: center; }

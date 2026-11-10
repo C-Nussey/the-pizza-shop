@@ -33,17 +33,20 @@
     </div>
   </div>
 
-  <div class="clock-controls" style="left:60%; top:3.5%; width:25%">
-    <div class="clock-row">
-      <button type="button" id="runBtn" class="run-btn">Open up</button>
-      <button type="button" id="stepBtn" class="ghost-btn">15 min &#9654;</button>
-      <button type="button" id="nextDayBtn" class="ghost-btn" hidden>Next day &#9654;</button>
-    </div>
-    <div class="speed-row">
-      <span>slow</span>
-      <input type="range" id="speed" min="1" max="5" value="3" aria-label="Speed" />
-      <span>fast</span>
-    </div>
+  <!-- Play/pause sits to the right of the clock painted into the artwork.
+       It only appears when there is a reason to run the clock. -->
+  <button type="button" id="playPauseBtn" class="play-pause" hidden
+          style="left:95.6%; top:4.4%" aria-label="Start the day">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path class="icon-play" d="M8 5.5 L18.5 12 L8 18.5 Z" />
+      <g class="icon-pause"><rect x="7.5" y="5.5" width="3.6" height="13" rx="1.2"/><rect x="12.9" y="5.5" width="3.6" height="13" rx="1.2"/></g>
+    </svg>
+  </button>
+
+  <div class="speed-row" style="left:81.9%; top:12%; width:17.5%">
+    <span>slow</span>
+    <input type="range" id="speed" min="1" max="5" value="3" aria-label="Speed" />
+    <span>fast</span>
   </div>
 
   <!-- ===== Instruments, in the lower band of the artwork ===== -->

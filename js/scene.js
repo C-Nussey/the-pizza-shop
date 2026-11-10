@@ -23,7 +23,7 @@
   var H = 800;
 
   var L = {
-    rail: { top: 24, h: 80, x0: 176, x1: 1000 },      // waiting tickets
+    rail: { top: 24, h: 80, x0: 124, x1: 952 },      // waiting tickets
     counterTop: 312,                                   // ovens stand on this line
     oven: { x0: 215, x1: 1010, h: 124 },
     // Chefs stand BEHIND the counter: their base sits well below the counter
@@ -34,7 +34,7 @@
     wip: { top: 344, h: 72, x0: 200, x1: 1045 },       // tickets on the counter front
     done: { x: 1108, top: 196, h: 62, step: 40, max: 6, stagger: 48 },
     clock: { x: 1128, y: 44, w: 84, h: 38 },
-    lever: { x: 14, y: 16, w: 86 },
+    lever: { x: 985, y: 16, w: 42 },    // beside the clock in the artwork
   };
 
   // Her palette, applied per chef so a row doesn't look cloned.

@@ -33,8 +33,7 @@
     workersValue: $("workersValue"), ovenSlotsValue: $("ovenSlotsValue"),
     workersUp: $("workersUp"), workersDown: $("workersDown"),
     ovenUp: $("ovenUp"), ovenDown: $("ovenDown"),
-    runBtn: $("runBtn"), stepBtn: $("stepBtn"), nextDayBtn: $("nextDayBtn"),
-    speed: $("speed"),
+    playPause: $("playPauseBtn"), speed: $("speed"),
     lead: $("leadValue"), cook: $("cookValue"), rate: $("rateValue"), sentBack: $("sentBackValue"),
     gauge: $("capacityGauge"), gaugeCommitted: $("gaugeCommitted"),
     gaugeCapacity: $("gaugeCapacity"), gaugeVerdict: $("gaugeVerdict"),
@@ -151,6 +150,7 @@
     renderGauge(view);
     renderCharts();
     updateScrubBanner();
+    if (!scrubState) els.playPause.hidden = !clockIsUseful();
   }
 
   // --- Day loop ------------------------------------------------------------
@@ -169,13 +169,24 @@
     renderAll();
   }
 
+  /**
+   * Whether running the clock would actually do anything. Hidden before the
+   * shutters go up, so opening the shop is the first thing a player does and
+   * the control appears as a result; hidden again once the day is over and
+   * there is nothing left to cook.
+   */
+  function clockIsUseful() {
+    if (state.dayOver) return false;
+    if (state.params.acceptingOrders) return true;       // open: orders are coming
+    return state.queue.length + state.kitchen.length > 0; // closed, but still cooking
+  }
+
   function setRunning(next) {
-    if (state.dayOver) next = false;
+    if (state.dayOver || !clockIsUseful()) next = false;
     running = next;
-    els.runBtn.textContent = running ? "Pause" : (state.tick === 0 ? "Open up" : "Resume");
-    els.runBtn.classList.toggle("is-running", running);
-    els.runBtn.disabled = state.dayOver;
-    els.stepBtn.disabled = state.dayOver;
+    els.playPause.classList.toggle("is-running", running);
+    els.playPause.setAttribute("aria-label", running ? "Pause" : "Start the clock");
+    els.playPause.hidden = !clockIsUseful();
     if (intervalId) { clearInterval(intervalId); intervalId = null; }
     if (running) {
       intervalId = setInterval(doTick, SPEED_INTERVALS_MS[Number(els.speed.value) - 1]);
@@ -195,7 +206,6 @@
     parts.push("Average wait " + Math.round(d.avgLeadMinutes) + " minutes.");
     els.daySummaryText.textContent = parts.join(" ");
     els.daySummary.hidden = false;
-    els.nextDayBtn.hidden = false;
   }
 
   function startNextDay() {
@@ -205,7 +215,6 @@
     scrubState = null;
     Scene.rollSkins();
     els.daySummary.hidden = true;
-    els.nextDayBtn.hidden = true;
     setRunning(false);
     renderAll();
   }
@@ -359,24 +368,34 @@
   els.ovenUp.addEventListener("click", function () { adjust("ovenSlots", 1, 1, 8); });
   els.ovenDown.addEventListener("click", function () { adjust("ovenSlots", -1, 1, 8); });
 
-  els.runBtn.addEventListener("click", function () { setRunning(!running); });
-  els.stepBtn.addEventListener("click", function () { setRunning(false); doTick(); });
-  els.nextDayBtn.addEventListener("click", startNextDay);
+  els.playPause.addEventListener("click", function () { setRunning(!running); });
   els.daySummaryNextBtn.addEventListener("click", startNextDay);
   els.speed.addEventListener("input", function () { if (running) setRunning(true); });
 
   // The lever in the scene toggles intake.
   window.onLeverToggle = function () {
     Shop.setParams(state, { acceptingOrders: !state.params.acceptingOrders });
+    // Closing up with an empty kitchen retires the clock; opening reveals it.
+    setRunning(running && clockIsUseful());
     renderAll();
   };
 
   // --- Boot ----------------------------------------------------------------
+  // Test hook: the 15-minute button is gone from the interface, but tests
+  // still need to advance the clock deterministically.
+  window.PizzaShop = {
+    step: function () { setRunning(false); doTick(); },
+    getState: function () { return state; },
+  };
+
   Assets.loadAll()
     .then(function () {
       els.loading.remove();
       Scene.init(els.scene);
       bindScrubbing();
+      // Start with the shutters down so opening up is the first decision.
+      Shop.setParams(state, { acceptingOrders: false });
+      setRunning(false);
       renderAll();
     })
     .catch(function (err) {
