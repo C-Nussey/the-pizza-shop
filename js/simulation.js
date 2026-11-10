@@ -330,6 +330,7 @@
       ret.startedTick = null;
       ret.sentBack = true;
       ret.requeuedTick = state.tick;
+      ret.queuedTick = state.tick;
       state.queue.unshift(ret);
 
       todayEvents.push({
@@ -369,6 +370,9 @@
         effortDone: 0,
         remakes: 0,
         orderedTick: state.tick,
+        // The order goes up on the board and waits a beat before anyone
+        // picks it up. See the pull step for why.
+        queuedTick: state.tick,
         startedTick: null,
       };
       state.queue.push(order);
@@ -435,9 +439,24 @@
     runQualityPass();
 
     // 5. Start new pizzas in any free oven slot.
+    //
+    //    An order cannot be started in the same tick it arrives. It goes up
+    //    on the board and is picked up on the next pass — which is both how
+    //    a kitchen actually works and the only way the waiting column is
+    //    visible at all. Without the beat, an order that arrives into a free
+    //    oven is placed and started between two frames, so the board appears
+    //    to be skipped entirely and a returned pizza jumping the queue is
+    //    never seen. Orders that are ready are still taken in order, so an
+    //    order waiting its beat at the front does not hold up the ones
+    //    behind it.
     var newlyStarted = [];
-    while (state.kitchen.length < p.ovenSlots && state.queue.length > 0) {
-      var next = state.queue.shift();
+    while (state.kitchen.length < p.ovenSlots) {
+      var idx = -1;
+      for (var qi = 0; qi < state.queue.length; qi++) {
+        if (state.queue[qi].queuedTick < state.tick) { idx = qi; break; }
+      }
+      if (idx === -1) break;
+      var next = state.queue.splice(idx, 1)[0];
       next.startedTick = state.tick;
       state.kitchen.push(next);
       newlyStarted.push(next);
