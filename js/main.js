@@ -60,10 +60,7 @@
     { key: "rate", field: "pizzasPerHour", color: "#2f9e5e", decimals: 1, unit: "/h", label: "Pizzas per hour" },
   ];
 
-  function money(n) {
-    var r = Math.round(n);
-    return (r < 0 ? "-$" : "$") + Math.abs(r);
-  }
+  var money = Shop.money;
 
   // --- Capacity: can we still finish what we've taken on? ------------------
   // Bounded by BOTH hands and oven slots, because one pizza can only absorb
@@ -72,13 +69,18 @@
     var ticksLeft = Math.max(0, Shop.TICKS_PER_DAY - s.tick);
     var perTick = Math.min(s.params.workers, s.params.ovenSlots);
     var capacityLeft = ticksLeft * perTick;
+    // Once the bell has gone, what was still owed is what never got made.
+    // Zeroing the gauge at closing would have it answer "can we still
+    // finish our orders?" with a clean sheet on the night it didn't.
+    var outstanding = s.dayOver ? s.walked : s.queue.concat(s.kitchen);
     var committed = 0;
-    s.queue.concat(s.kitchen).forEach(function (o) {
+    outstanding.forEach(function (o) {
       committed += o.effortRequired - o.effortDone;
     });
     return {
       committed: committed,
       capacityLeft: capacityLeft,
+      unfinished: s.dayOver ? s.walked.length : 0,
       ratio: capacityLeft > 0 ? committed / capacityLeft : (committed > 0 ? Infinity : 0),
     };
   }
@@ -119,6 +121,13 @@
 
     els.gauge.classList.remove("gauge--ok", "gauge--tight", "gauge--over");
     var verdict;
+    if (s.dayOver) {
+      els.gauge.classList.add(pic.unfinished ? "gauge--over" : "gauge--ok");
+      els.gaugeVerdict.textContent = pic.unfinished
+        ? pic.unfinished + (pic.unfinished === 1 ? " never got their pizza" : " never got their pizzas")
+        : "Everyone got their pizza";
+      return;
+    }
     if (pic.ratio > 1) {
       els.gauge.classList.add("gauge--over");
       verdict = "Too much — someone won't get their pizza";
@@ -140,7 +149,7 @@
       { label: "Pizzas sold (" + t.deliveredCount + ")", value: t.revenue },
       { label: "Ingredients" + (t.returnedCount ? " (incl. " + t.returnedCount + " remade)" : ""), value: -t.ingredientCost },
       { label: "Lost goodwill", value: -t.goodwill },
-      { label: "Wages so far (" + s.params.workers + " on shift)", value: -wages },
+      { label: (s.dayOver ? "Wages (" : "Wages so far (") + s.params.workers + " on shift)", value: -wages },
     ];
     els.tillRows.innerHTML = rows.map(function (r) {
       var cls = r.value > 0 ? "till-pos" : r.value < 0 ? "till-neg" : "";
@@ -187,7 +196,7 @@
     els.workersValue.textContent = view.params.workers;
     if (els.wageCost) {
       els.wageCost.textContent =
-        "$" + Shop.WAGE_PER_WORKER_PER_DAY + " each = " +
+        money(Shop.WAGE_PER_WORKER_PER_DAY) + " each = " +
         money(view.params.workers * Shop.WAGE_PER_WORKER_PER_DAY) + "/day";
     }
     els.ovenSlotsValue.textContent = view.params.ovenSlots;

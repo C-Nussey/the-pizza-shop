@@ -88,6 +88,11 @@ body {
   letter-spacing: .5px;
 }
 .scene-more { font-size: 22px; fill: #fff; opacity: 0.85; }
+.scene-more--lost { fill: #ffb4a8; }
+/* Orders that never got made. They stay on the board at closing with a
+   line through them, because they are the most expensive thing that
+   happened all day. */
+.lost-x { stroke: #c1452f; stroke-width: 5; stroke-linecap: round; opacity: .9; }
 
 /* Dotted line from a ticket to the oven its pizza is in. */
 .flow-line {

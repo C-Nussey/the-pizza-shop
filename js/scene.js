@@ -37,11 +37,11 @@
     // the counter is painted into the background and cannot overlap them.
     chef: { base: 330, h: 136, x0: 250, x1: 975 },
     wip: { top: 344, h: 72, x0: 200, x1: 1045 },       // tickets on the counter front
-    // The done pile fills the whole green panel (which is x 1087-1280,
-    // y 122-492 in the artwork). Every delivered order goes on it: the
-    // spacing closes up as the pile grows, so a busy night looks like a
-    // busy night instead of six tidy tickets and a hidden remainder.
-    done: { x: 1102, top: 166, bottom: 420, h: 62, step: 38, stagger: 30 },
+    // The done pile fills the whole green panel (x 1087-1280, y 122-492 in
+    // the artwork). Every delivered order goes on it, in three columns:
+    // the spacing closes up as the pile grows, so a busy night looks like
+    // a busy night instead of six tidy tickets and a hidden remainder.
+    done: { cols: [1096, 1154, 1212], top: 166, bottom: 420, h: 62, step: 38 },
     clock: { x: 1128, y: 44, w: 84, h: 38 },
     // The little screen on the cash register painted into the background.
     registerScreen: { x: 995, y: 491, w: 41, h: 22 },
@@ -316,27 +316,84 @@
     var finished = state.delivered.filter(function (o) { return !inFlight[o.id]; });
     if (!finished.length) return;
 
-    // Every delivered order is on the spike. The gap between them shrinks as
-    // the night goes on, so the pile stays inside its panel however big the
-    // day gets — thirty orders look like thirty orders, just closer packed.
+    // Three columns across the panel, filling left to right and top to
+    // bottom. The rows close up as the pile grows, so it stays inside the
+    // panel however big the night gets — thirty orders look like thirty
+    // orders, just packed tighter.
+    var cols = L.done.cols.length;
+    var rows = Math.ceil(finished.length / cols);
     var span = L.done.bottom - L.done.top - L.done.h;
-    var step = finished.length > 1
-      ? Math.max(4, Math.min(L.done.step, span / (finished.length - 1)))
-      : 0;
+    var step = rows > 1 ? Math.max(4, Math.min(L.done.step, span / (rows - 1))) : 0;
 
-    // Oldest first, so each new ticket lands ON TOP of the one before it and
-    // the most recent is the one you can read — the way a real spike fills.
+    // Oldest first, so each new ticket lands ON TOP of the one before it
+    // and the most recent is the one you can read.
     finished.forEach(function (order, i) {
       var set = returnedIds[order.id] ? TICKET_SET.sentBack : TICKET_SET.done;
       var age = ageIndex(order.leadTimeMinutes || 0);
-      var x = L.done.x + (i % 2) * L.done.stagger + wobble(order.id, 14);
-      var y = L.done.top + i * step;
+      var x = L.done.cols[i % cols] + wobble(order.id, 14);
+      var y = L.done.top + Math.floor(i / cols) * step;
       var g = el("g", {
-        transform: "rotate(" + wobble(order.id + 7, 9).toFixed(2) + " " +
+        transform: "rotate(" + wobble(order.id + 7, 8).toFixed(2) + " " +
           (x + 28) + " " + (y + L.done.h / 2) + ")",
       });
       drawTicket(g, set[age], x, y, L.done.h, order, (order.leadTimeMinutes || 0) + "m");
       layers.tickets.appendChild(g);
+    });
+  }
+
+  /** Ticket width for a given height, from the artwork's own proportions. */
+  var TICKET_RATIO = 114.02 / 127.62;
+
+  function crossOut(x, y, h) {
+    var w = h * TICKET_RATIO;
+    var pad = h * 0.16;
+    [[x + pad, y + pad, x + w - pad, y + h - pad],
+     [x + w - pad, y + pad, x + pad, y + h - pad]].forEach(function (p) {
+      layers.tickets.appendChild(el("path", {
+        d: "M " + p[0] + " " + p[1] + " L " + p[2] + " " + p[3],
+        class: "lost-x",
+      }));
+    });
+  }
+
+  /**
+   * At closing, the orders nobody got to STAY on the board with a line
+   * through them. Clearing them away at the bell is the one thing a shop
+   * never does: those are the customers who went home, and they are the
+   * most expensive thing that happened all day — they should be the last
+   * thing you see, not the first thing that disappears.
+   */
+  function drawLost(state, ovenBoxes) {
+    if (!state.dayOver || !state.walked.length) return;
+    var waiting = [], started = [];
+    state.walked.forEach(function (o) {
+      (o.startedTick == null ? waiting : started).push(o);
+    });
+
+    var shown = waiting.slice(0, 11);
+    var xs = spread(shown.length, L.rail.x0, L.rail.x1 - 68, 70, true);
+    shown.forEach(function (order, i) {
+      var waited = (state.tick - order.orderedTick) * Shop.MINUTES_PER_TICK;
+      var x = xs[i] - 34;
+      drawTicket(layers.tickets, TICKET_SET.waiting[2], x, L.rail.top, L.rail.h, order, waited + "m");
+      crossOut(x, L.rail.top, L.rail.h);
+    });
+    if (waiting.length > shown.length) {
+      var more = el("text", {
+        x: L.rail.x1 + 16, y: L.rail.top + L.rail.h * 0.6,
+        class: "scene-more scene-more--lost", "text-anchor": "middle",
+      });
+      more.textContent = "+" + (waiting.length - shown.length);
+      layers.tickets.appendChild(more);
+    }
+
+    // The ones that were actually in an oven when the bell went: the sale
+    // AND the ingredients.
+    started.slice(0, 10).forEach(function (order, i) {
+      var waited = (state.tick - order.orderedTick) * Shop.MINUTES_PER_TICK;
+      var x = (ovenBoxes[i] ? ovenBoxes[i].x : L.wip.x0 + i * 70) - 30;
+      drawTicket(layers.tickets, TICKET_SET.wip[2], x, L.wip.top, L.wip.h, order, waited + "m");
+      crossOut(x, L.wip.top, L.wip.h);
     });
   }
 
@@ -416,8 +473,8 @@
     var v = Math.round(n);
     var sign = v < 0 ? "-" : "";
     v = Math.abs(v);
-    if (v >= 10000) return sign + "$" + (v / 1000).toFixed(1) + "k";
-    return sign + "$" + v;
+    if (v >= 10000) return sign + Shop.CURRENCY + (v / 1000).toFixed(1) + "k";
+    return sign + Shop.CURRENCY + v;
   }
 
   /** 24-hour clock: "16:00" can't be misread as four in the morning. */
@@ -428,22 +485,100 @@
     return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
   }
 
-  /** What the chef is wondering about, picked from what's actually wrong. */
+  /**
+   * What somebody in the kitchen says, picked from what is actually
+   * happening. The list is in priority order: the most pressing thing
+   * wins, and each line is tied to a condition the player can see on the
+   * board, so the bubble is a reading of the shop rather than decoration.
+   */
   function sceneMessage(state) {
+    if (state.dayOver) return closingMessage(state);
+
     var snap = Shop.latestSnapshot(state);
-    if (state.today.returnedCount > 0 && state.returned.length) {
-      return { bad: true, text: "Why are orders coming back?" };
+    var queue = state.queue.length;
+    var kitchen = state.kitchen.length;
+    var staff = state.params.workers;
+    var ovens = state.params.ovenSlots;
+    var ticksLeft = Math.max(0, Shop.TICKS_PER_DAY - state.tick);
+
+    // Only a FRESH return is worth saying; the old code kept this bubble
+    // up for the rest of the day after a single one, which made the shop
+    // look permanently on fire.
+    var justBack = state.returned.some(function (o) {
+      return o.requeuedTick != null && state.tick - o.requeuedTick <= 3;
+    });
+    if (justBack) {
+      return { bad: true, text: "That one's back — we rushed it" };
     }
-    if (snap.queueSize >= 6) {
-      return { bad: true, text: "We're drowning out here!" };
+
+    // Owing more cooking than there is time left to do it.
+    var owed = 0;
+    state.queue.concat(state.kitchen).forEach(function (o) {
+      owed += o.effortRequired - o.effortDone;
+    });
+    var canDo = ticksLeft * Math.min(staff, ovens);
+    if (owed > canDo && owed > 0) {
+      return { bad: true, text: "We won't get through this lot" };
     }
-    if (state.kitchen.length === 0 && state.queue.length === 0 && state.tick > 2) {
+
+    if (queue >= 8) return { bad: true, text: "We're drowning out here!" };
+    if (snap.avgLeadMinutes >= 90) return { bad: true, text: "People have waited over an hour" };
+    if (queue >= 4) return { bad: true, text: "The orders keep coming!" };
+    if (kitchen > staff * 1.5 && kitchen > 2) {
+      return { bad: true, text: "Too many on the go at once" };
+    }
+    if (!state.params.acceptingOrders && queue + kitchen > 0) {
+      return { bad: false, text: "Shutters down — just these to finish" };
+    }
+    if (kitchen === 0 && queue === 0 && state.tick > 2) {
       return { bad: false, text: "Nothing to do..." };
     }
-    if (state.params.workers > state.params.ovenSlots) {
-      return { bad: false, text: "Not enough ovens for us all" };
+    if (staff > ovens) return { bad: false, text: "Not enough ovens for us all" };
+    if (ovens > staff && kitchen >= staff) {
+      return { bad: false, text: "More ovens than hands tonight" };
+    }
+    if (state.delivered.length >= 5 && queue <= 1) {
+      return { bad: false, text: "Nice and steady, this" };
     }
     return null;
+  }
+
+  /**
+   * The last word of the night: how the shift felt, not what it earned.
+   * The till already says what it earned.
+   */
+  function closingMessage(state) {
+    var d = state.days[state.days.length - 1];
+    if (!d) return null;
+
+    if (d.walked > 0 && d.profit < 0) {
+      return { bad: true, text: d.walked + " let down, and we still lost money" };
+    }
+    if (d.walked > 0) {
+      return { bad: true, text: d.walked + " went home with nothing" };
+    }
+    if (d.profit < 0) {
+      return { bad: true, text: "Flat out all night and still behind" };
+    }
+    if (d.returned >= 3) {
+      return { bad: true, text: "Too many sent back — we were rushing" };
+    }
+    if (d.avgLeadMinutes >= 75) {
+      return { bad: true, text: "Everyone got one, but they waited" };
+    }
+
+    // Idle time, averaged over the day, says the quiet nights apart from
+    // the well-judged ones: both end clean, but only one was busy.
+    var idle = 0;
+    state.history.forEach(function (h) { idle += h.idleCapacity || 0; });
+    var perTick = Math.max(1, Math.min(d.workers, d.ovenSlots));
+    if (state.history.length && idle / state.history.length > perTick * 0.55) {
+      return { bad: false, text: "Quiet one — we could've taken more" };
+    }
+    if (d.refused > d.delivered * 0.5) {
+      return { bad: false, text: "Turned a lot away, but we coped" };
+    }
+    return { bad: false, text: "Everyone got their pizza. Good night" };
   }
 
   // --- Public --------------------------------------------------------------
@@ -460,6 +595,7 @@
     drawWaiting(state);
     drawInProgress(state, ovenBoxes);
     drawDone(state);
+    drawLost(state, ovenBoxes);
     drawControls(state, chefs);
   }
 

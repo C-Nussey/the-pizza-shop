@@ -116,8 +116,8 @@
         "First day: " + people(opening(current, "workers")) + " on shift, " +
           opening(current, "ovenSlots") + " oven slots. You took " + current.accepted + " orders, " +
           "turned away " + current.refused + ", and delivered " + current.delivered +
-          " for " + (current.profit >= 0 ? "a profit of $" : "a loss of $") +
-          Math.abs(Math.round(current.profit)) + ".",
+          " for " + (current.profit >= 0 ? "a profit of " : "a loss of ") +
+          Shop.money(Math.abs(current.profit)) + ".",
       ];
       if (current.walked > 0) {
         out.push(
@@ -147,7 +147,7 @@
       "Result: " +
         (Math.abs(dProfit) < 1
           ? "about the same money"
-          : "$" + Math.abs(Math.round(dProfit)) + (dProfit > 0 ? " better" : " worse")) +
+          : Shop.money(Math.abs(dProfit)) + (dProfit > 0 ? " better" : " worse")) +
         ", " +
         (dDelivered === 0
           ? "the same number delivered"

@@ -101,6 +101,19 @@
     acceptingOrders: true,
   };
 
+  // Rands. One formatter for the whole shop, so the till, the register
+  // screen and the write-ups can never disagree about the money.
+  var CURRENCY = "R";
+
+  function money(n) {
+    var v = Math.round(n);
+    var sign = v < 0 ? "-" : "";
+    v = Math.abs(v);
+    // South African thousands separator is a space: R1 240.
+    var digits = String(v).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00A0");
+    return sign + CURRENCY + digits;
+  }
+
   function clamp(v, lo, hi) {
     return Math.max(lo, Math.min(hi, v));
   }
@@ -656,5 +669,7 @@
     tickToHour: tickToHour,
     dayProfit: dayProfit,
     wagesPerTick: wagesPerTick,
+    CURRENCY: CURRENCY,
+    money: money,
   };
 });
