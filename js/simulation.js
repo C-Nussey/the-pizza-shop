@@ -99,6 +99,11 @@
     workers: 3,
     ovenSlots: 4,
     acceptingOrders: true,
+    // How many orders the shop has agreed to take on today. Reached, the
+    // shutters come down on their own. Deciding this before the night
+    // starts is a plan; pulling a lever at the right second is a reflex
+    // test, and the reflex test was crowding out the lesson.
+    intakeCap: 30,
   };
 
   // Rands. One formatter for the whole shop, so the till, the register
@@ -351,6 +356,17 @@
       state.arrivalAccumulator -= 1;
       var typeKey = rollComplexity();
       var type = PIZZA_TYPES[typeKey];
+      var atCap = p.intakeCap != null && state.today.acceptedCount >= p.intakeCap;
+      if (atCap && p.acceptingOrders) {
+        // The agreed number is reached: stop, and say so once.
+        p.acceptingOrders = false;
+        state.closedAtTick = state.tick;
+        logEvent(
+          state,
+          "closed",
+          "That's the " + p.intakeCap + " orders we agreed to take on. Shutters down."
+        );
+      }
       if (!p.acceptingOrders) {
         state.refusedCount += 1;
         state.today.refusedCount += 1;
@@ -500,6 +516,63 @@
     }
   }
 
+  /**
+   * How many more we can expect to get out before closing.
+   *
+   * Deliberately NOT a calculation from hours of staff available: that is
+   * resource-hours capacity planning, which is the habit flow metrics
+   * exist to replace. This is a forecast from throughput actually
+   * observed — today's once there is enough of it, previous nights'
+   * before that — which means on the first night it has nothing to say,
+   * and says so. Capacity is learned, not computed.
+   */
+  function capacityForecast(state) {
+    var ticksLeft = Math.max(0, TICKS_PER_DAY - state.tick);
+    var hoursLeft = (ticksLeft * MINUTES_PER_TICK) / 60;
+
+    var pastRates = state.days
+      .map(function (d) { return d.pizzasPerHour; })
+      .filter(function (r) { return r > 0; });
+    var todayDelivered = state.today.deliveredCount;
+    var hoursSoFar = (state.tick * MINUTES_PER_TICK) / 60;
+    var todayRate = hoursSoFar > 0 ? todayDelivered / hoursSoFar : 0;
+
+    // Today's evidence takes over as it accumulates; eight pizzas in is
+    // enough to trust it over the memory of other nights.
+    var weight = Math.min(1, todayDelivered / 8);
+    var pastMean = pastRates.length
+      ? pastRates.reduce(function (a, b) { return a + b; }, 0) / pastRates.length
+      : 0;
+
+    if (!pastRates.length && todayDelivered < 3) {
+      return { known: false, hoursLeft: hoursLeft };
+    }
+
+    var rate = pastRates.length
+      ? weight * todayRate + (1 - weight) * pastMean
+      : todayRate;
+
+    // The spread of past nights is the honest error bar. With one night or
+    // none to go on, a quarter either way says "we are guessing".
+    var spread = 0.25;
+    if (pastRates.length > 1) {
+      var lo = Math.min.apply(null, pastRates);
+      var hi = Math.max.apply(null, pastRates);
+      spread = Math.max(0.1, (hi - lo) / 2 / Math.max(0.1, pastMean));
+    }
+
+    var mid = rate * hoursLeft;
+    return {
+      known: true,
+      nights: pastRates.length,
+      rate: rate,
+      hoursLeft: hoursLeft,
+      mid: mid,
+      low: Math.max(0, mid * (1 - spread)),
+      high: mid * (1 + spread),
+    };
+  }
+
   function rollingStats(state) {
     var delivered = state.delivered;
     var n = delivered.length;
@@ -603,6 +676,7 @@
       startOvenSlots: settings.start.ovenSlots,
       paramChanges: settings.moves,
       closedEarlyAtTick: state.closedAtTick != null ? state.closedAtTick : null,
+      intakeCap: state.params.intakeCap,
       accepted: state.today.acceptedCount,
       refused: state.today.refusedCount,
       delivered: state.today.deliveredCount,
@@ -690,6 +764,7 @@
     tickToHour: tickToHour,
     dayProfit: dayProfit,
     wagesPerTick: wagesPerTick,
+    capacityForecast: capacityForecast,
     CURRENCY: CURRENCY,
     money: money,
   };

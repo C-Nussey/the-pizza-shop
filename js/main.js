@@ -41,6 +41,7 @@
     wageCost: $("wageCost"),
     workersUp: $("workersUp"), workersDown: $("workersDown"),
     ovenUp: $("ovenUp"), ovenDown: $("ovenDown"),
+    capUp: $("capUp"), capDown: $("capDown"), capValue: $("capValue"),
     playPause: $("playPauseBtn"), speed: $("speed"),
     lead: $("leadValue"), cook: $("cookValue"), rate: $("rateValue"), sentBack: $("sentBackValue"),
     eff: $("effValue"), effFill: $("effFill"),
@@ -59,8 +60,6 @@
     predictNumber: $("predictNumber"), predictValue: $("predictValue"),
     predictUp: $("predictUp"), predictDown: $("predictDown"), predictUnit: $("predictUnit"),
     predictOptions: $("predictOptions"),
-    ovenUp: $("ovenUp"), ovenDown: $("ovenDown"),
-    workersUp: $("workersUp"), workersDown: $("workersDown"),
     termsToggle: $("termsToggle"), rulesLink: $("rulesLink"),
     rulesCard: $("rulesCard"), rulesList: $("rulesList"), rulesClose: $("rulesCloseBtn"),
     scrubBanner: $("scrubBanner"), scrubTooltip: $("scrubTooltip"),
@@ -83,23 +82,25 @@
   // --- Capacity: can we still finish what we've taken on? ------------------
   // Bounded by BOTH hands and oven slots, because one pizza can only absorb
   // one pair of hands at a time.
+  /**
+   * The night's plan, counted in orders rather than hours.
+   *
+   * It used to measure both sides in hours of cooking: work owed against
+   * staff-hours left. That is resource-hours capacity planning, and it is
+   * the habit flow metrics exist to replace — available from the first
+   * minute, authoritative-looking, and worth very little. Owed is now a
+   * count of orders, and capacity is a forecast from throughput actually
+   * observed, which means on the first night it has nothing to say and
+   * admits it.
+   */
   function capacityPicture(s) {
-    var ticksLeft = Math.max(0, Shop.TICKS_PER_DAY - s.tick);
-    var perTick = Math.min(s.params.workers, s.params.ovenSlots);
-    var capacityLeft = ticksLeft * perTick;
-    // Once the bell has gone, what was still owed is what never got made.
-    // Zeroing the gauge at closing would have it answer "can we still
-    // finish our orders?" with a clean sheet on the night it didn't.
-    var outstanding = s.dayOver ? s.walked : s.queue.concat(s.kitchen);
-    var committed = 0;
-    outstanding.forEach(function (o) {
-      committed += o.effortRequired - o.effortDone;
-    });
+    var owed = s.dayOver ? s.walked.length : s.queue.length + s.kitchen.length;
+    var forecast = Shop.capacityForecast(s);
     return {
-      committed: committed,
-      capacityLeft: capacityLeft,
+      owed: owed,
+      forecast: forecast,
       unfinished: s.dayOver ? s.walked.length : 0,
-      ratio: capacityLeft > 0 ? committed / capacityLeft : (committed > 0 ? Infinity : 0),
+      ratio: forecast.known && forecast.mid > 0 ? owed / forecast.mid : (owed > 0 ? null : 0),
     };
   }
 
@@ -112,33 +113,23 @@
 
   function renderGauge(s) {
     var pic = capacityPicture(s);
+    var f = pic.forecast;
 
-    // Both bars are drawn against a FIXED scale — a whole day's cooking at
-    // this staffing — so they can be compared over time. Scaling to the
-    // current values instead (as this did) pinned whichever bar was larger
-    // at full height every render, so "time left" never appeared to move
-    // even as the day ran out.
-    var perTick = Math.max(1, Math.min(s.params.workers, s.params.ovenSlots));
-    var dayCapacity = Shop.TICKS_PER_DAY * perTick;
-    var scale = Math.max(dayCapacity, pic.committed, 1);
+    els.capValue.textContent = s.params.intakeCap == null ? "\u221e" : s.params.intakeCap;
 
-    els.gaugeCommitted.style.height =
-      Math.min(100, (pic.committed / scale) * 100).toFixed(1) + "%";
+    // One scale for both bars, taken from the night's commitment, so they
+    // read against each other and across the evening.
+    var scale = Math.max(s.params.intakeCap || 0, pic.owed, f.known ? f.high : 0, 1);
+    els.gaugeCommitted.style.height = Math.min(100, (pic.owed / scale) * 100).toFixed(1) + "%";
     els.gaugeCapacity.style.height =
-      Math.min(100, (pic.capacityLeft / scale) * 100).toFixed(1) + "%";
+      Math.min(100, (f.known ? f.mid / scale : 0) * 100).toFixed(1) + "%";
 
-    // Said in minutes of cooking, which is far more use than an abstract
-    // unit: "40m of cooking owed against 3h of kitchen left" explains
-    // itself in a way that two unlabelled bars never will.
-    if (els.gaugeCommittedNum) {
-      els.gaugeCommittedNum.textContent = asDuration((pic.committed / perTick) * Shop.MINUTES_PER_TICK);
-    }
-    if (els.gaugeCapacityNum) {
-      els.gaugeCapacityNum.textContent = asDuration((pic.capacityLeft / perTick) * Shop.MINUTES_PER_TICK);
-    }
+    els.gaugeCommittedNum.textContent = pic.owed;
+    els.gaugeCapacityNum.innerHTML = f.known
+      ? '<span class="gauge-range">' + Math.round(f.low) + "\u2013" + Math.round(f.high) + "</span>"
+      : "\u2014";
 
     els.gauge.classList.remove("gauge--ok", "gauge--tight", "gauge--over");
-    var verdict;
     if (s.dayOver) {
       els.gauge.classList.add(pic.unfinished ? "gauge--over" : "gauge--ok");
       els.gaugeVerdict.textContent = pic.unfinished
@@ -146,17 +137,29 @@
         : "Everyone got their pizza";
       return;
     }
+
+    // On the first night there is no throughput to forecast from, and
+    // saying so IS the lesson: capacity is learned, not calculated.
+    if (!f.known) {
+      els.gauge.classList.add("gauge--tight");
+      els.gaugeVerdict.textContent = state.days.length
+        ? "Nothing out of the kitchen yet tonight"
+        : "No idea yet \u2014 we've never traded a night";
+      return;
+    }
+
+    var verdict;
     if (pic.ratio > 1) {
       els.gauge.classList.add("gauge--over");
-      verdict = "Too much — someone won't get their pizza";
+      verdict = "More owed than we can finish";
     } else if (pic.ratio > 0.8) {
       els.gauge.classList.add("gauge--tight");
-      verdict = "Tight — no room for surprises";
+      verdict = "Tight \u2014 no room for surprises";
     } else {
       els.gauge.classList.add("gauge--ok");
-      verdict = pic.committed === 0 ? "Kitchen's clear" : "Comfortably on track";
+      verdict = pic.owed === 0 ? "Kitchen's clear" : "Comfortably on track";
     }
-    els.gaugeVerdict.textContent = verdict;
+    els.gaugeVerdict.textContent = verdict + (f.nights ? "" : " \u2014 on tonight alone");
   }
 
   function renderTill(s) {
@@ -370,6 +373,15 @@
 
   /** Commit to the answer, set up whatever the night needs, and open up. */
   function lockPrediction() {
+    var spec = tonight();
+    // Where a night says so, the answer IS the setting. Committing to a
+    // number and then having to enforce it by hand is a reflex test, not
+    // a plan.
+    if (spec && spec.applies && prediction && prediction.value != null) {
+      var change = {};
+      change[spec.applies] = prediction.value;
+      Shop.setParams(state, change);
+    }
     els.predictCard.hidden = true;
     renderAll();
   }
@@ -404,9 +416,11 @@
     var prev = state.days[state.days.length - 2] || null;
     var actual = spec.actual(d, prev);
     var said = spec.kind === "number" ? prediction.value : prediction.index;
-    var hit = spec.kind === "number"
-      ? Math.abs(actual - said) <= Math.max(2, Math.round(actual * 0.1))
-      : actual === said;
+    var hit = spec.judge
+      ? spec.judge(said, actual, d)
+      : spec.kind === "number"
+        ? Math.abs(actual - said) <= Math.max(2, Math.round(actual * 0.1))
+        : actual === said;
     d.prediction = {
       kind: spec.kind,
       said: said,
@@ -417,7 +431,7 @@
       // For a count the label names the quantity ("delivered"), so the
       // number goes in front of it; a direction question writes its own.
       detail: spec.kind === "number"
-        ? actual + " " + spec.actualLabel
+        ? actual + " " + spec.actualLabel + (d.walked ? ", " + d.walked + " went home" : "")
         : Campaign.resolve(spec.actualLabel, d, prev),
       hitLabel: spec.hitLabel || "Called it",
       missLabel: spec.missLabel || "Not quite",
@@ -658,7 +672,7 @@
       var pic = capacityPicture(scrubState);
       var snap = Shop.latestSnapshot(scrubState);
       note = " · " + snap.queueSize + " waiting, " + snap.kitchenSize + " cooking" +
-        (pic.ratio > 1 ? " · already more owed than there was time to cook it" : "");
+        (pic.ratio > 1 ? " · already owing more than the night could finish" : "");
     }
     els.scrubBannerText.textContent =
       "Frozen at " + Shop.tickToClock(scrubTick) + note;
@@ -780,6 +794,22 @@
   els.workersUp.addEventListener("click", function () { adjust("workers", 1, 1, 8); });
   els.workersDown.addEventListener("click", function () { adjust("workers", -1, 1, 8); });
   els.ovenUp.addEventListener("click", function () { adjust("ovenSlots", 1, 1, 8); });
+  // Raising the agreed number re-opens the shutters: taking on more than
+  // you said you would is a decision, and it should read as one.
+  els.capUp.addEventListener("click", function () {
+    endScrub(false);
+    var next = Math.min(80, (state.params.intakeCap || 0) + 2);
+    Shop.setParams(state, { intakeCap: next });
+    if (!state.dayOver && state.today.acceptedCount < next && state.tick > 0) {
+      Shop.setParams(state, { acceptingOrders: true });
+    }
+    renderAll();
+  });
+  els.capDown.addEventListener("click", function () {
+    endScrub(false);
+    Shop.setParams(state, { intakeCap: Math.max(0, (state.params.intakeCap || 0) - 2) });
+    renderAll();
+  });
   els.ovenDown.addEventListener("click", function () { adjust("ovenSlots", -1, 1, 8); });
 
   // --- Vocabulary -----------------------------------------------------------

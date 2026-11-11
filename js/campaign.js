@@ -48,32 +48,30 @@
       kind: "number",
       title: "Now you know something",
       ask: function (prev) {
-        return "Yesterday you took " + prev.accepted + " orders and delivered " +
-          prev.delivered + ". How many will you accept today?";
+        return "Last night you delivered " + prev.delivered +
+          ". How many orders will you take on tonight?";
       },
-      note: "The only thing you are deciding tonight is how much work to take on. Close the shutters when you reach your number.",
-      // Pinned, and night 3 is pinned to the same staff with the ovens
-      // doubled, so the two nights differ in exactly one thing. Measured
-      // across 300 nights per staffing level: doubling the ovens makes the
-      // kitchen slower on 90-100% of nights at 1-3 staff, but only 51% at
-      // four and 33% at six \u2014 above three pairs of hands this shop is never
-      // busy enough for a WIP limit to bind, and the experiment would have
-      // quietly taught the opposite of what it set out to.
+      note: "The shop stops taking orders by itself when it reaches your number \u2014 so this is a promise, not a reflex.",
+      unit: "orders",
+      min: 0, max: 80, start: function (prev) { return prev.delivered; }, step: 2,
+      // The answer IS the setting: what they commit to is what the shop
+      // takes on. A plan you then have to enforce by hand is a reflex test.
+      applies: "intakeCap",
       setup: function () { return { workers: 3, ovenSlots: 3 }; },
       locks: ["workers", "ovenSlots"],
-      unit: "orders",
-      min: 0, max: 80, start: function (prev) { return prev.delivered; }, step: 5,
-      actual: function (d) { return d.accepted; },
-      actualLabel: "accepted",
-      // Night 2 is a commitment, not a forecast: the question is whether
-      // they held the line, not whether they guessed well.
-      hitLabel: "You held the line",
-      missLabel: "You took more than you planned",
+      actual: function (d) { return d.delivered; },
+      actualLabel: "delivered",
+      // Not "did you guess the number" — did you finish what you promised.
+      judge: function (said, actual, d) { return d.walked === 0; },
+      hitLabel: "You finished everything you took on",
+      missLabel: "You took on more than you finished",
       lesson:
-        "Throughput is a planning input, not a target. Yesterday's delivered count is the " +
-        "best forecast you have for tonight — and intake is the one lever that decides " +
-        "whether you keep the promise. Taking an order you cannot finish costs the sale, " +
-        "the ingredients and the customer.",
+        "Throughput is a planning input, not a target. Last night's delivered count is the " +
+        "best forecast you have for tonight, and what you take on is the one lever that " +
+        "decides whether the promise holds. Promise less than you can deliver and you leave " +
+        "money on the counter; promise more and it costs you the sale, the ingredients and " +
+        "the customer. The number to commit to is the one your own throughput supports \u2014 " +
+        "which is why you had to trade a night before you could pick it.",
     },
     {
       day: 3,

@@ -35,12 +35,20 @@
         "Flip this to CLOSED and new orders are turned away at the door instead of joining the queue. Turning an order away costs you that sale — but taking an order you can't finish before closing costs you the sale AND the ingredients AND an unhappy customer. Knowing when to stop saying yes is the whole job.",
     },
     capacityGauge: {
-      title: "Can we still finish it?",
-      flowTitle: "Committed work vs capacity remaining",
+      title: "Tonight's plan",
+      flowTitle: "Commitment against forecast capacity",
       flowBody:
-        "Committed work is everything accepted but not yet delivered. Capacity remaining is what the system can still produce before the deadline. When the first exceeds the second, the only remaining question is who gets disappointed.",
+        "Work in progress \u2014 accepted but not delivered \u2014 against a forecast of how much more the system can deliver before the deadline. The forecast is not calculated from how many people are available; it is observed throughput extrapolated over the time remaining, which is why it is a range and why it says nothing at all until there is something to observe. Capacity is learned, not computed.",
       body:
-        "The top bar is how much cooking you've already promised — everything waiting plus everything half-made. The bottom bar is how much cooking time is left before closing. While the bottom bar is longer, you can still finish what you've taken. Once the top bar overtakes it, somebody in that queue is not getting their pizza, no matter what you do next.",
+        "The left bar is how many orders you still owe \u2014 waiting plus half-made. The right bar is how many more we think we can get out before 21:00, worked out from how fast the kitchen has actually been going, tonight and on the nights before it. It is a range because it is a guess, and on your very first night it is blank, because nobody can forecast a kitchen they have never run. While the right bar is taller you can still finish what you have taken on. Once the left one overtakes it, somebody is not getting their pizza.",
+    },
+    intakeCap: {
+      title: "How many to take on",
+      flowTitle: "Commitment",
+      flowBody:
+        "How much work the team agrees to accept this period. Setting it from observed throughput is forecasting; setting it from hope is how a sprint commitment becomes a wish. Raising it mid-period is a decision with a cost, not an adjustment.",
+      body:
+        "The number of orders the shop agrees to take on tonight. When you reach it the shutters come down on their own, so you decide it once, up front, instead of watching the counter and pulling a lever at the right second. Set it too low and you turn away money you could have made; set it too high and you keep people waiting for a pizza that never comes. The number worth promising is the one last night's kitchen actually delivered.",
     },
     leadTime: {
       title: "Wait for a pizza",

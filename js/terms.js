@@ -45,9 +45,10 @@
     earnings: ["Total earnings", "Total earnings"],
 
     // The capacity gauge
-    gaugeTitle: ["Can we still finish<br />our orders?", "Committed vs<br />capacity left"],
-    gaugeCommitted: ["Committed", "Committed"],
-    gaugeCapacity: ["Time left", "Capacity"],
+    gaugeTitle: ["Tonight's plan", "Commitment vs capacity"],
+    intakeCap: ["Take on", "Commit to"],
+    gaugeCommitted: ["Still owed", "Committed"],
+    gaugeCapacity: ["Can finish", "Capacity"],
 
     // Charts
     chartQueue: ["Orders waiting", "Queue"],

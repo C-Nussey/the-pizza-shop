@@ -646,3 +646,23 @@ body {
   color: var(--ink-soft); letter-spacing: .01em;
 }
 .predict-setup--fixed { color: #8a5a00; }
+
+/* --- Tonight's plan ----------------------------------------------------- */
+.plan-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: .25em; margin: -.2em 0 .5em; flex-wrap: wrap;
+}
+.plan-label {
+  font-size: .68em; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--ink-soft); width: 100%; text-align: center;
+}
+.plan-value {
+  font-family: var(--hand); font-size: 1.5em; line-height: 1;
+  min-width: 1.6em; text-align: center; font-variant-numeric: tabular-nums;
+}
+.step-btn--sm { width: 1.5em; height: 1.5em; font-size: .9em; }
+.day-hours {
+  font-size: .64em; color: var(--ink-soft); text-align: center;
+  letter-spacing: .03em; margin: -.35em 0 .35em;
+}
+.gauge-range { font-size: .82em; }
