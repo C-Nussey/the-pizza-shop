@@ -46,7 +46,12 @@
       return;
     }
 
-    var values = points.map(function (p) {
+    // Clipped to the same length as tonight, so the comparison is "last
+    // night by this time", not a whole night squeezed into a few hours.
+    var ghost = (opts.ghost || [])
+      .filter(function (p) { return p && p.value != null; })
+      .slice(0, (points || []).length);
+    var values = points.concat(ghost).map(function (p) {
       return p.value;
     });
     var minV = Math.min.apply(null, values);
@@ -100,6 +105,35 @@
       var x = xFor(i);
       var y = yFor(points[i].value);
       pathD += (i === 0 ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1) + " ";
+    }
+
+    // Last night, dashed and quiet, drawn first so tonight sits on top of
+    // it. Both lines share one scale — two charts side by side with
+    // different axes would be worse than no comparison at all.
+    if (ghost.length > 1) {
+      var ghostD = "";
+      for (var g = 0; g < ghost.length; g++) {
+        ghostD += (g === 0 ? "M" : "L") +
+          xFor(Math.min(n - 1, g)).toFixed(1) + "," + yFor(ghost[g].value).toFixed(1) + " ";
+      }
+      svg.appendChild(
+        svgEl("path", {
+          d: ghostD.trim(),
+          fill: "none",
+          stroke: "#9b9b9b",
+          "stroke-width": "1.5",
+          "stroke-dasharray": "3 3",
+          "stroke-opacity": "0.75",
+          "stroke-linejoin": "round",
+        })
+      );
+      if (opts.ghostLabel) {
+        var key = svgEl("text", {
+          x: padX + 2, y: padY + 8, class: "chart-ghost-key",
+        });
+        key.textContent = "- - " + opts.ghostLabel;
+        svg.appendChild(key);
+      }
     }
 
     // Soft fill under the line.

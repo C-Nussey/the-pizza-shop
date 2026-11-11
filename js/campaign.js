@@ -51,7 +51,7 @@
         return "Yesterday you took " + prev.accepted + " orders and delivered " +
           prev.delivered + ". How many will you accept today?";
       },
-      note: "The kitchen is fixed tonight \u2014 three on shift, three ovens \u2014 so the only thing you are deciding is how much work to take on. Close the shutters when you reach your number.",
+      note: "The only thing you are deciding tonight is how much work to take on. Close the shutters when you reach your number.",
       // Pinned, and night 3 is pinned to the same staff with the ovens
       // doubled, so the two nights differ in exactly one thing. Measured
       // across 300 nights per staffing level: doubling the ovens makes the
@@ -88,7 +88,7 @@
       // kitchen longer 97% of the time. The wait is where the player FEELS
       // it; the kitchen is where it can be reliably shown.
       ask: "Twice as many ovens tonight, the same three staff. What happens to the time each pizza spends in the kitchen?",
-      note: "Same shift as last night, six ovens instead of three. Both fixed \u2014 this one is an experiment.",
+      note: "Same shift as last night, twice the ovens. This one is an experiment, so nothing else moves.",
       options: ["Shorter", "About the same", "Longer"],
       setup: function (params, prev) {
         return { workers: 3, ovenSlots: 6 };
@@ -119,7 +119,7 @@
       kind: "direction",
       title: "Where does the time go?",
       ask: "Of the time a customer spends waiting, how much is someone actually making their pizza?",
-      note: "Watch the flow efficiency tile as the night goes on.",
+      note: "The kitchen is yours again. Watch the flow efficiency tile as the night goes on.",
       options: ["Nearly all \u2014 70%+", "About half", "A quarter or less"],
       actual: function (d) {
         var p = pct(d);

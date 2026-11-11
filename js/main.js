@@ -55,6 +55,7 @@
     startScreen: $("startScreen"), startGuided: $("startGuided"), startFree: $("startFree"),
     predictCard: $("predictCard"), predictDay: $("predictDay"), predictTitle: $("predictTitle"),
     predictAsk: $("predictAsk"), predictNote: $("predictNote"), predictGo: $("predictGoBtn"),
+    predictSetup: $("predictSetup"),
     predictNumber: $("predictNumber"), predictValue: $("predictValue"),
     predictUp: $("predictUp"), predictDown: $("predictDown"), predictUnit: $("predictUnit"),
     predictOptions: $("predictOptions"),
@@ -196,11 +197,24 @@
   }
 
   function renderCharts() {
+    // Last night's shape, dashed, behind tonight's. It turns every chart
+    // into a comparison instead of a reading, which is the only way a
+    // prediction about "longer or shorter" can be answered by looking.
+    // Once tonight is closed its own record is on the end of the list, so
+    // the night to compare against is the one before it. The comparison
+    // matters most at closing, which is when it was disappearing.
+    var last = state.days[state.days.length - (state.dayOver ? 2 : 1)];
+    var ghostable = last && last.history && last.history.length > 1;
+
     CHART_SPECS.forEach(function (spec) {
       var points = state.history.map(function (h) {
         return { day: h.tick, value: h[spec.field] };
       });
       Charts.renderLineChart(chartContainers[spec.key], points, {
+        ghost: ghostable ? last.history.map(function (h) {
+          return { day: h.tick, value: h[spec.field] };
+        }) : null,
+        ghostLabel: "last night",
         color: spec.color, unit: spec.unit, decimals: spec.decimals,
         label: spec.label, height: 44, markerDay: scrubTick,
       });
@@ -299,9 +313,24 @@
     var prev = previousDay();
     prediction = null;
 
+    // Set the night up BEFORE the card is read, not when it is dismissed.
+    // A card that says "three on shift, three ovens" over panels still
+    // reading 3 and 4 is asking the player to believe the text over the
+    // shop, and they are right not to.
+    if (spec.setup) Shop.setParams(state, spec.setup(state.params, prev));
+    applyLocks();
+    renderAll();
+
     els.predictDay.textContent = "Night " + spec.day + " of " + Campaign.lastDay;
     els.predictTitle.textContent = spec.title;
     els.predictAsk.textContent = Campaign.resolve(spec.ask, prev);
+    // Every card states tonight's kitchen, so nobody has to look away from
+    // the question to find out what they are answering about.
+    var fixed = spec.locks && spec.locks.length;
+    els.predictSetup.textContent =
+      state.params.workers + " on shift \u00b7 " + state.params.ovenSlots + " oven slots \u2014 " +
+      (fixed ? "fixed for tonight" : "yours to change");
+    els.predictSetup.className = "predict-setup" + (fixed ? " predict-setup--fixed" : "");
     els.predictNote.textContent = Campaign.resolve(spec.note, prev) || "";
 
     if (spec.kind === "number") {
@@ -341,13 +370,7 @@
 
   /** Commit to the answer, set up whatever the night needs, and open up. */
   function lockPrediction() {
-    var spec = tonight();
     els.predictCard.hidden = true;
-    if (!spec) return;
-    if (spec.setup) {
-      Shop.setParams(state, spec.setup(state.params, previousDay()));
-    }
-    applyLocks();
     renderAll();
   }
 

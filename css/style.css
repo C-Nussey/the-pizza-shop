@@ -633,3 +633,16 @@ body {
 .day-summary button {
   position: sticky; bottom: 0;
 }
+
+/* The class sets display, which otherwise beats the browser's own [hidden]
+   rule — which is how a leftover "27 orders" stepper ended up sitting under
+   a question about where the time goes. */
+.predict-number[hidden] { display: none; }
+
+.chart-ghost-key { font-size: 8px; fill: #8c8178; letter-spacing: .02em; }
+
+.predict-setup {
+  margin: -.5em 0 .8em; font-size: .78em; font-weight: 700;
+  color: var(--ink-soft); letter-spacing: .01em;
+}
+.predict-setup--fixed { color: #8a5a00; }

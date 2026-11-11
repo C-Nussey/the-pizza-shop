@@ -618,6 +618,8 @@
       avgLeadMinutes: stats.avgLeadMinutes,
       avgCookMinutes: stats.avgCookMinutes,
       pizzasPerHour: stats.pizzasPerHour,
+      // Kept so tomorrow's charts can draw tonight behind them.
+      history: state.history.slice(),
     });
 
     state.dayOver = true;
