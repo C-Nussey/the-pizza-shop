@@ -46,7 +46,10 @@ body {
   box-shadow: 0 10px 30px rgba(42, 31, 24, 0.18);
   /* Type inside the stage scales with it, so overlays keep their
      proportions at any width. */
-  font-size: clamp(9px, 1.08cqw, 15px);
+  /* The floor used to be 9px. Below about 700px wide the text stopped
+     shrinking while its containers kept going, so the controls overflowed
+     their column and ran into the instruments underneath. */
+  font-size: clamp(7px, 1.08cqw, 15px);
   container-type: inline-size;
 }
 .scene, .scene-svg {
@@ -381,7 +384,7 @@ body {
   animation: day-card-in .25s ease-out;
   /* Anchored at its foot so a wordy day grows UP over the register rather
      than down over the till it is summarising. */
-  max-height: 34%; overflow: auto;
+  max-height: 40%; overflow: auto;
 }
 .day-summary[hidden] { display: none; }
 .day-summary h3 { margin: 0; color: #1f7a4a; font-size: 1.15em; font-family: var(--hand); line-height: 1.1; }
@@ -519,7 +522,11 @@ body {
    when the font renders a little larger than expected. */
 .left-controls {
   position: absolute; z-index: 10;
-  display: flex; flex-direction: column; justify-content: space-between; gap: .4em;
+  display: flex; flex-direction: column;
+  /* Centred rather than spread: the panels sit together with an even
+     margin above and below, instead of being pushed to the edges of
+     their column. */
+  justify-content: center; gap: .45em;
 }
 .left-controls .panel { position: static; flex: 0 0 auto; }
 
@@ -529,3 +536,100 @@ body {
   background: #e4d9c8; overflow: hidden;
 }
 .eff-fill { display: block; height: 100%; background: var(--basil); transition: width .25s ease; }
+
+/* ===== The door, and the question before the night ====================== */
+
+.start-screen {
+  position: absolute; inset: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(42,31,24,.55);
+  backdrop-filter: blur(3px);
+}
+.start-screen[hidden] { display: none; }
+.start-card {
+  width: 56%; max-width: 46em;
+  background: var(--paper); border: 2px solid var(--crust);
+  border-radius: 1em; padding: 1.6em 1.8em;
+  box-shadow: 0 24px 60px rgba(42,31,24,.45);
+  text-align: center;
+}
+.start-card h1 {
+  margin: 0 0 .3em; font-family: var(--hand); font-size: 2.6em;
+  line-height: 1; color: var(--ink);
+}
+.start-blurb { margin: 0 auto 1.2em; font-size: .88em; line-height: 1.5; max-width: 30em; }
+.start-choices { display: flex; gap: .8em; }
+.start-btn {
+  flex: 1; display: flex; flex-direction: column; gap: .25em;
+  background: #fff; border: 1px solid var(--line); border-radius: .7em;
+  padding: .8em .9em; cursor: pointer; font: inherit; text-align: left;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.start-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(42,31,24,.18); }
+.start-btn--primary { background: var(--basil); border-color: var(--basil); color: #fff; }
+.start-btn-title { font-weight: 800; font-size: .98em; }
+.start-btn-note { font-size: .74em; line-height: 1.35; opacity: .85; }
+
+.predict-card {
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  z-index: 70; width: 46%;
+  background: var(--paper); border: 2px solid var(--basil);
+  border-radius: .9em; padding: 1.2em 1.4em; text-align: center;
+  box-shadow: 0 18px 50px rgba(42,31,24,.4);
+}
+.predict-card[hidden] { display: none; }
+.predict-day {
+  font-size: .68em; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--ink-soft); font-weight: 800;
+}
+.predict-card h3 {
+  margin: .1em 0 .5em; font-family: var(--hand); font-size: 1.6em; color: var(--ink);
+}
+.predict-ask { margin: 0 auto .9em; font-size: .95em; line-height: 1.45; max-width: 26em; }
+.predict-number { display: flex; align-items: center; justify-content: center; gap: .5em; margin-bottom: .8em; }
+.predict-value {
+  font-family: var(--hand); font-size: 2.6em; line-height: 1;
+  min-width: 2em; font-variant-numeric: tabular-nums;
+}
+.predict-unit { font-size: .8em; color: var(--ink-soft); }
+.predict-options { display: flex; gap: .5em; margin-bottom: .8em; }
+.predict-options[hidden] { display: none; }
+.predict-option {
+  flex: 1; border: 1px solid var(--line); background: #fff; border-radius: .6em;
+  padding: .6em .4em; cursor: pointer; font: inherit; font-size: .85em; font-weight: 650;
+}
+.predict-option[aria-pressed="true"] { background: var(--basil); border-color: var(--basil); color: #fff; }
+.predict-note { margin: 0 0 1em; font-size: .76em; color: var(--ink-soft); font-style: italic; }
+.predict-card button#predictGoBtn {
+  border: 1px solid var(--basil); background: var(--basil); color: #fff;
+  padding: .55em 1.3em; border-radius: .5em; font: inherit;
+  font-size: .9em; font-weight: 700; cursor: pointer;
+}
+.predict-card button#predictGoBtn[disabled] { opacity: .45; cursor: default; }
+
+/* The reveal, inside the end-of-night card. */
+.reveal { margin-top: .2em; }
+.reveal-row { display: flex; align-items: center; gap: .4em; font-size: .72em; margin-bottom: .18em; }
+.reveal-key { width: 4.4em; flex: none; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .03em; }
+.reveal-bar { flex: 1; height: .62em; background: #e4d9c8; border-radius: .4em; overflow: hidden; }
+.reveal-bar span { display: block; height: 100%; }
+.reveal-bar--said span { background: #9b9b9b; }
+.reveal-bar--was span { background: var(--basil); }
+.reveal-num { width: 3.4em; flex: none; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.reveal-verdict { font-size: .76em; font-weight: 800; margin: .3em 0 .1em; }
+.reveal-verdict--hit { color: #1f7a4a; }
+.reveal-verdict--miss { color: var(--tomato); }
+.reveal-lesson { font-size: .72em; line-height: 1.4; }
+
+.called { font-weight: 800; }
+.called--hit { color: #1f7a4a; }
+.called--miss { color: var(--tomato); }
+.called--none { color: var(--ink-soft); }
+.step-btn[disabled] { opacity: .35; cursor: default; }
+
+.reveal-call { margin: 0 0 .25em; font-size: .76em; }
+/* The card scrolls when a night has a lot to say, so the way on must stay
+   reachable without scrolling to find it. */
+.day-summary button {
+  position: sticky; bottom: 0;
+}

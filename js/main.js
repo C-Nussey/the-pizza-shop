@@ -24,6 +24,10 @@
   var dragging = false;
   // The rules card greets the player once; after that it is on request.
   var openedOnce = false;
+  // "guided" runs the five scripted nights, each with a question before it.
+  var mode = null;
+  // What the player committed to before tonight, before they could see it.
+  var prediction = null;
 
   var dayHistory = [];
   var selectedDayIndex = null;
@@ -48,6 +52,14 @@
     daySummaryText: $("daySummaryText"), daySummaryNextBtn: $("daySummaryNextBtn"),
     dayHistory: $("dayHistory"), dayHistoryBody: $("dayHistoryBody"), dayExplain: $("dayExplain"),
     daySummaryNote: $("daySummaryNote"),
+    startScreen: $("startScreen"), startGuided: $("startGuided"), startFree: $("startFree"),
+    predictCard: $("predictCard"), predictDay: $("predictDay"), predictTitle: $("predictTitle"),
+    predictAsk: $("predictAsk"), predictNote: $("predictNote"), predictGo: $("predictGoBtn"),
+    predictNumber: $("predictNumber"), predictValue: $("predictValue"),
+    predictUp: $("predictUp"), predictDown: $("predictDown"), predictUnit: $("predictUnit"),
+    predictOptions: $("predictOptions"),
+    ovenUp: $("ovenUp"), ovenDown: $("ovenDown"),
+    workersUp: $("workersUp"), workersDown: $("workersDown"),
     termsToggle: $("termsToggle"), rulesLink: $("rulesLink"),
     rulesCard: $("rulesCard"), rulesList: $("rulesList"), rulesClose: $("rulesCloseBtn"),
     scrubBanner: $("scrubBanner"), scrubTooltip: $("scrubTooltip"),
@@ -235,7 +247,9 @@
     Shop.tick(state);
     if (state.dayOver) {
       setRunning(false);
+      scorePrediction();
       recordDay();
+      applyLocks();
     }
     renderAll();
   }
@@ -262,6 +276,159 @@
     if (running) {
       intervalId = setInterval(doTick, SPEED_INTERVALS_MS[Number(els.speed.value) - 1]);
     }
+  }
+
+  // --- The guided nights ----------------------------------------------------
+
+  function previousDay() { return state.days[state.days.length - 1] || null; }
+
+  /** The scripted night we are on, if any. Free play never has one. */
+  function tonight() {
+    return mode === "guided" ? Campaign.forDay(state.day) : null;
+  }
+
+  /**
+   * The question, asked before the shutters go up so the answer cannot be
+   * revised once the night starts going wrong. A number where the quantity
+   * is the point; three directions where the concept is, because then
+   * being wrong is unambiguous and there is nothing to argue with.
+   */
+  function askPrediction() {
+    var spec = tonight();
+    if (!spec) return false;
+    var prev = previousDay();
+    prediction = null;
+
+    els.predictDay.textContent = "Night " + spec.day + " of " + Campaign.lastDay;
+    els.predictTitle.textContent = spec.title;
+    els.predictAsk.textContent = Campaign.resolve(spec.ask, prev);
+    els.predictNote.textContent = Campaign.resolve(spec.note, prev) || "";
+
+    if (spec.kind === "number") {
+      var start = Campaign.resolve(spec.start, prev);
+      prediction = { value: Math.max(spec.min, Math.min(spec.max, Math.round(start))) };
+      els.predictValue.textContent = prediction.value;
+      els.predictUnit.textContent = spec.unit;
+      els.predictNumber.hidden = false;
+      els.predictOptions.hidden = true;
+      els.predictGo.disabled = false;
+    } else {
+      els.predictNumber.hidden = true;
+      els.predictOptions.innerHTML = "";
+      spec.options.forEach(function (label, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "predict-option";
+        b.textContent = label;
+        b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", function () {
+          prediction = { index: i };
+          var all = els.predictOptions.querySelectorAll(".predict-option");
+          for (var j = 0; j < all.length; j++) {
+            all[j].setAttribute("aria-pressed", j === i ? "true" : "false");
+          }
+          els.predictGo.disabled = false;
+        });
+        els.predictOptions.appendChild(b);
+      });
+      els.predictOptions.hidden = false;
+      els.predictGo.disabled = true;
+    }
+
+    els.predictCard.hidden = false;
+    return true;
+  }
+
+  /** Commit to the answer, set up whatever the night needs, and open up. */
+  function lockPrediction() {
+    var spec = tonight();
+    els.predictCard.hidden = true;
+    if (!spec) return;
+    if (spec.setup) {
+      Shop.setParams(state, spec.setup(state.params, previousDay()));
+    }
+    applyLocks();
+    renderAll();
+  }
+
+  /**
+   * Some nights fix a lever, because an experiment you can undo halfway
+   * through is not an experiment.
+   */
+  function applyLocks() {
+    var spec = tonight();
+    var locked = spec && spec.locks ? spec.locks : [];
+    [["ovenSlots", els.ovenUp, els.ovenDown], ["workers", els.workersUp, els.workersDown]]
+      .forEach(function (pair) {
+        var isLocked = locked.indexOf(pair[0]) >= 0 && !state.dayOver;
+        [pair[1], pair[2]].forEach(function (btn) {
+          if (!btn) return;
+          btn.disabled = isLocked;
+          btn.title = isLocked ? "Fixed for tonight" : "";
+        });
+      });
+  }
+
+  /**
+   * What they said, against what happened. Kept on the day record so the
+   * history can show their calibration across the week — being roughly
+   * right more often is the actual skill.
+   */
+  function scorePrediction() {
+    var spec = mode === "guided" ? Campaign.forDay(state.day) : null;
+    var d = previousDay();
+    if (!spec || !d || !prediction) return;
+    var prev = state.days[state.days.length - 2] || null;
+    var actual = spec.actual(d, prev);
+    var said = spec.kind === "number" ? prediction.value : prediction.index;
+    var hit = spec.kind === "number"
+      ? Math.abs(actual - said) <= Math.max(2, Math.round(actual * 0.1))
+      : actual === said;
+    d.prediction = {
+      kind: spec.kind,
+      said: said,
+      actual: actual,
+      hit: hit,
+      saidLabel: spec.kind === "number" ? said : spec.options[said],
+      actualLabel: spec.kind === "number" ? actual : spec.options[actual],
+      // For a count the label names the quantity ("delivered"), so the
+      // number goes in front of it; a direction question writes its own.
+      detail: spec.kind === "number"
+        ? actual + " " + spec.actualLabel
+        : Campaign.resolve(spec.actualLabel, d, prev),
+      hitLabel: spec.hitLabel || "Called it",
+      missLabel: spec.missLabel || "Not quite",
+      lesson: spec.lesson,
+    };
+    prediction = null;
+  }
+
+  /** The reveal: their call and the outcome, side by side, then why. */
+  function revealHtml(d) {
+    var p = d.prediction;
+    if (!p) return "";
+    var out = '<div class="reveal">';
+    if (p.kind === "number") {
+      var scale = Math.max(p.said, p.actual, 1);
+      out +=
+        '<div class="reveal-row"><span class="reveal-key">You said</span>' +
+        '<span class="reveal-bar reveal-bar--said"><span style="width:' +
+        ((p.said / scale) * 100).toFixed(0) + '%"></span></span>' +
+        '<span class="reveal-num">' + p.said + "</span></div>" +
+        '<div class="reveal-row"><span class="reveal-key">It was</span>' +
+        '<span class="reveal-bar reveal-bar--was"><span style="width:' +
+        ((p.actual / scale) * 100).toFixed(0) + '%"></span></span>' +
+        '<span class="reveal-num">' + p.actual + "</span></div>";
+    } else {
+      out +=
+        '<p class="reveal-call">You said <strong>' + p.saidLabel +
+        "</strong> \u00b7 it was <strong>" + p.actualLabel + "</strong></p>";
+    }
+    out += '<p class="reveal-verdict ' + (p.hit ? "reveal-verdict--hit" : "reveal-verdict--miss") +
+      '">' + (p.hit ? (p.hitLabel || "Called it") : (p.missLabel || "Not quite")) +
+      (p.detail ? " \u2014 " + p.detail : "") + "</p>";
+    out += '<p class="reveal-lesson">' + p.lesson + "</p></div>";
+    return out;
   }
 
   /**
@@ -340,7 +507,9 @@
       parts.push("Average wait " + Math.round(d.avgLeadMinutes) + " min.");
       parts.push(settingsSentence(d));
       els.daySummaryText.textContent = parts.join(" ");
-      els.daySummaryNote.textContent = "Click along any chart to see what the shop looked like at that moment.";
+      els.daySummaryNote.innerHTML = d.prediction
+        ? revealHtml(d)
+        : "Click along any chart to see what the shop looked like at that moment.";
       els.daySummaryNextBtn.textContent = "Start the next day \u25B8";
       els.daySummary.dataset.mode = "over";
       els.daySummary.hidden = false;
@@ -367,7 +536,9 @@
     if (!dayCanBeWrappedUp()) return;
     setRunning(false);
     Shop.closeDay(state);
+    scorePrediction();
     recordDay();
+    applyLocks();
     renderAll();
   }
 
@@ -378,6 +549,8 @@
     scrubState = null;
     Scene.rollSkins();
     setRunning(false);
+    askPrediction();
+    applyLocks();
     renderAll();
   }
 
@@ -386,6 +559,19 @@
     dayHistory.push(state.days[state.days.length - 1]);
     selectedDayIndex = dayHistory.length - 1;
     renderDayHistory();
+  }
+
+  /**
+   * Their call against the outcome, night by night. Getting it roughly
+   * right more often is the skill the whole loop is for, and it only shows
+   * up across a week.
+   */
+  function calledCell(d) {
+    if (!d.prediction) return "<span class=\"called called--none\">\u2013</span>";
+    return d.prediction.hit
+      ? '<span class="called called--hit" title="' + d.prediction.saidLabel + '">\u2713</span>'
+      : '<span class="called called--miss" title="You said ' + d.prediction.saidLabel +
+        ', it was ' + d.prediction.actualLabel + '">\u2717</span>';
   }
 
   /** "3/4\u21923" — staffing and ovens, with any mid-day move shown as a move. */
@@ -405,7 +591,7 @@
       if (i === selectedDayIndex) cls.push("run-row--selected");
       return '<tr class="' + cls.join(" ") + '" data-day-index="' + i +
         '" tabindex="0" role="button" aria-label="Explain day ' + d.dayNumber + '">' +
-        "<td>" + d.dayNumber + "</td><td>" + settingCell(d) + "</td>" +
+        "<td>" + d.dayNumber + "</td><td>" + calledCell(d) + "</td><td>" + settingCell(d) + "</td>" +
         "<td>" + d.accepted + "</td><td>" + d.refused + "</td><td>" + d.delivered + "</td>" +
         "<td>" + d.walked + "</td><td>" + d.returned + "</td>" +
         '<td class="' + (d.profit >= 0 ? "till-pos" : "till-neg") + '">' + money(d.profit) + "</td></tr>";
@@ -605,12 +791,33 @@
     applyTerms();
   });
 
+  function begin(chosen) {
+    mode = chosen;
+    els.startScreen.hidden = true;
+    showRules();
+  }
+  els.startGuided.addEventListener("click", function () { begin("guided"); });
+  els.startFree.addEventListener("click", function () { begin("free"); });
+
+  // Numbers are nudged rather than typed: it keeps a guess a guess.
+  function nudge(delta) {
+    var spec = tonight();
+    if (!spec || spec.kind !== "number" || !prediction) return;
+    var step = spec.step || 1;
+    prediction.value = Math.max(spec.min, Math.min(spec.max, prediction.value + delta * step));
+    els.predictValue.textContent = prediction.value;
+  }
+  els.predictUp.addEventListener("click", function () { nudge(1); });
+  els.predictDown.addEventListener("click", function () { nudge(-1); });
+  els.predictGo.addEventListener("click", lockPrediction);
+
   els.rulesLink.addEventListener("click", function () {
     if (els.rulesCard.hidden) showRules();
     else els.rulesCard.hidden = true;
   });
   els.rulesClose.addEventListener("click", function () {
     els.rulesCard.hidden = true;
+    if (!openedOnce) askPrediction();
     openedOnce = true;
   });
 
@@ -651,9 +858,9 @@
       Shop.setParams(state, { acceptingOrders: false });
       setRunning(false);
       renderAll();
-      // The agreed rules come before the first order, not after it: they
-      // are what every number in the game is counted against.
-      showRules();
+      // The start screen is already up over all of this; the rules and the
+      // first question come once the player has chosen how to play.
+      els.startScreen.hidden = false;
     })
     .catch(function (err) {
       els.loading.textContent = "Couldn't load the shop artwork: " + err.message;

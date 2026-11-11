@@ -61,6 +61,7 @@
     // Day history
     historyTitle: ["Previous days", "Previous days"],
     histDay: ["Day", "Day"],
+    histCalled: ["Called it?", "Called it?"],
     histSetup: ["Staff/Oven", "People / WIP"],
     histTook: ["Took", "Accepted"],
     histTurned: ["Turned away", "Refused"],
