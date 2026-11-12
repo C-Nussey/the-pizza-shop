@@ -340,6 +340,7 @@
       var start = Campaign.resolve(spec.start, prev);
       prediction = { value: Math.max(spec.min, Math.min(spec.max, Math.round(start))) };
       els.predictValue.textContent = prediction.value;
+      applyAnswer(spec);
       els.predictUnit.textContent = spec.unit;
       els.predictNumber.hidden = false;
       els.predictOptions.hidden = true;
@@ -393,7 +394,9 @@
   function applyLocks() {
     var spec = tonight();
     var locked = spec && spec.locks ? spec.locks : [];
-    [["ovenSlots", els.ovenUp, els.ovenDown], ["workers", els.workersUp, els.workersDown]]
+    [["ovenSlots", els.ovenUp, els.ovenDown],
+     ["workers", els.workersUp, els.workersDown],
+     ["intakeCap", els.capUp, els.capDown]]
       .forEach(function (pair) {
         var isLocked = locked.indexOf(pair[0]) >= 0 && !state.dayOver;
         [pair[1], pair[2]].forEach(function (btn) {
@@ -859,6 +862,20 @@
     var step = spec.step || 1;
     prediction.value = Math.max(spec.min, Math.min(spec.max, prediction.value + delta * step));
     els.predictValue.textContent = prediction.value;
+    applyAnswer(spec);
+  }
+
+  /**
+   * Where the answer IS a setting, move the setting as they move the
+   * number. Leaving the panel on its old value until they pressed the
+   * button read as the game quietly ignoring what they typed.
+   */
+  function applyAnswer(spec) {
+    if (!spec || !spec.applies || !prediction || prediction.value == null) return;
+    var change = {};
+    change[spec.applies] = prediction.value;
+    Shop.setParams(state, change);
+    renderAll();
   }
   els.predictUp.addEventListener("click", function () { nudge(1); });
   els.predictDown.addEventListener("click", function () { nudge(-1); });

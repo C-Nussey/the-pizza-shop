@@ -330,6 +330,16 @@
       // which is the real sting: a returned pizza doesn't just cost money,
       // it steals oven time from orders that haven't been started yet.
       // It jumps the queue, the way an angry customer does.
+      // It is not a delivered order any more: the customer is standing at
+      // the counter holding it. Counting it as delivered AND, at closing,
+      // as a customer who went home empty-handed made the two add up to
+      // more orders than were ever taken.
+      if (ret.countedDelivered) {
+        ret.countedDelivered = false;
+        state.today.deliveredCount -= 1;
+        var at = state.delivered.indexOf(ret);
+        if (at >= 0) state.delivered.splice(at, 1);
+      }
       ret.effortDone = 0;
       ret.absorbedThisTick = 0;
       ret.startedTick = null;
@@ -511,6 +521,13 @@
     if (!pizza.revenueCounted) {
       pizza.revenueCounted = true;
       state.today.revenue += pizza.price;
+    }
+
+    // Counted separately from the money, because an order can stop being
+    // delivered: if the customer sends it back it is an open order again
+    // until we make it right.
+    if (!pizza.countedDelivered) {
+      pizza.countedDelivered = true;
       state.today.deliveredCount += 1;
       state.delivered.push(pizza);
     }

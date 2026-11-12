@@ -33,15 +33,26 @@
       kind: "number",
       title: "Opening night",
       ask: "How many pizzas will you get out before 21:00?",
-      note: "You have never traded a day here. Have a guess — being wrong is the point.",
+      note: "Tonight you take every order that comes in — no limit — so we find out what the kitchen can actually do. Have a guess; being wrong is the point.",
+      // No cap on the first night, and the control is fixed. The plan panel
+      // used to sit there reading "take on 30" while this card asked for a
+      // different number, which reads as the game ignoring the answer. It
+      // also has to be uncapped for the lesson to land: a shop that stops
+      // at the player's own guess can never show them the gap between what
+      // they hoped for and what the kitchen does.
+      setup: function () { return { intakeCap: null }; },
+      locks: ["intakeCap"],
       unit: "pizzas",
       min: 0, max: 80, start: 25, step: 5,
       actual: function (d) { return d.delivered; },
       actualLabel: "delivered",
+      hitLabel: "Good read on the kitchen",
+      missLabel: "Not quite",
       lesson:
         "Capacity is not ambition. What a shop can deliver is set by how many hands and " +
-        "ovens it has and how long the night is — not by how many orders you take. " +
-        "Tonight you found out what this kitchen can actually do.",
+        "ovens it has and how long the night is — not by how many orders you take. You took " +
+        "every order that came in tonight, and the ones the kitchen could not reach are the " +
+        "people who went home. That number is what tomorrow's plan has to answer.",
     },
     {
       day: 2,
